@@ -1,10 +1,11 @@
 ---
-title: 我的第一篇博文
-published: 2023-10-01
-description: 这是使用Astro创建的第一篇博文
+title: CSAPP-bomb-lab
+published: 2025-03-03
+description: gdb & asm 优质Lab练习
 # image: ./cover.jpg
-tags: [Astro, 教程]
-category: 前端开发
+tags: [gdb, Lab]
+category: 调试工具
+draft: true
 ---
 
 > `la as` OR `x/5i $pc`

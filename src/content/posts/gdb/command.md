@@ -1,10 +1,11 @@
 ---
-title: gdb
-published: 2023-10-01
-description: 这是使用Astro创建的第一篇博文
+title: gdb教程
+published: 2025-02-10
+description: gdb 命令
 # image: ./cover.jpg
-tags: [Astro, 教程]
-category: 前端开发
+tags: [gdb, 教程]
+category: 调试工具
+draft: true
 ---
 
 ## breakpiont
