@@ -2,9 +2,9 @@ name: Build and Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main, master ] # 只在 main 分支 push 时触发
+    branches: [ gh_pages ]
   pull_request:
-    branches: [ main, master ] # PR 时只做检查，不部署
+    branches: [ master, gh_pages ] # PR 时只做检查，不部署
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -43,7 +43,7 @@ jobs:
         run: pnpm astro check
 
   deploy:
-    if: ${{ github.event_name == 'push' && contains(' refs/heads/main refs/heads/master ', github.ref) }}
+    if: ${{ github.event_name == 'push' && contains(' refs/heads/gh_pages ', github.ref) }}
     needs: check # 确保检查通过后再部署
     runs-on: ubuntu-latest
     name: Deploy Astro Site to GitHub Pages
@@ -66,10 +66,7 @@ jobs:
 
       # 构建生产版本
       - name: Build Astro site
-      
         run: |
-          echo "PUBLIC_URL='https://${{ github.repository_owner }}.github.io/aLinChee_Blog'" >> .env
-          echo "BASE_PATH='/aLinChee_Blog'" >> .env
           pnpm run build
 
       # 部署到 GitHub Pages
