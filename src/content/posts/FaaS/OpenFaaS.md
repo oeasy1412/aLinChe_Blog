@@ -2,7 +2,7 @@
 title: OpenFaaS Week3
 published: 2025-02-14
 description: OpenFaaS 入门教程
-# image: ./cover.jpg
+image: ./images/cover1.png
 tags: [FaaS, 教程]
 category: FaaS
 draft: false
@@ -54,7 +54,7 @@ kubectl get pods -n openfaas
 > POST /echo/primes：返回是否为质数。
 
 main.rs:(我这里想实现一个2e7范围内判断质数的 `FaaS` ，需要手动配置 `Tokio` )
-```Rust
+```rust
 fn handler_service(req: Request<Body>) -> BoxFuture<'static, Result<Response<Body>, Infallible>> {
     Box::pin(async {
         match handler::echo(req).await {
