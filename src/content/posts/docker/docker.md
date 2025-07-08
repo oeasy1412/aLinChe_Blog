@@ -2,7 +2,7 @@
 title: docker Week1
 published: 2025-01-20
 description: docker 教程
-# image: ./cover.jpg
+image: ./images/cover1.png
 tags: [docker, 教程]
 category: 容器
 draft: false

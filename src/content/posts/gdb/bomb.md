@@ -2,11 +2,21 @@
 title: CSAPP-bomb-lab
 published: 2025-03-03
 description: gdb & asm 优质Lab练习
-# image: ./cover.jpg
-tags: [gdb, Lab]
+image: ./images/cover-CSAPP.png
+tags: [gdb, Lab, CSAPP]
 category: 调试工具
-draft: true
+draft: false
 ---
+
+# phase_0 env
+```sh
+wget csapp.cs.cmu.edu/3e/bomb.tar # wget -O ./bomb.tar csapp.cs.cmu.edu/3e/bomb.tar
+tar xvf bomb.tar
+# Bomb Lab文件目录如下：
+# ├── bomb
+# ├── bomb.c
+# └── README
+```
 
 > `la as` OR `x/5i $pc`
 # phase_1

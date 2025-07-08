@@ -2,7 +2,6 @@
 title: syscall Week2
 published: 2025-01-22
 description: syscall 概念
-# image: ./cover.jpg
 tags: [syscall]
 category: OS
 draft: false
