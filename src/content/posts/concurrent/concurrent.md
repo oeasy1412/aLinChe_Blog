@@ -3,7 +3,7 @@ title: concurrent
 published: 2025-04-16
 description: 并发同步原语
 # image: ./images/cover1.png
-tags: [OS, 并发，线程]
+tags: [OS, 并发, 线程]
 category: 并发
 draft: false
 ---
