@@ -121,7 +121,7 @@ g++ -g -O2 ./sig.cpp
 objdump -D ./a.out &| vim -
 ```
 
-```nasm
+```asm
 Disassembly of section .text:
 
 0000000000001100 <main>:

@@ -10,6 +10,8 @@ draft: false
 
 ## ⚡ 断点调试（Breakpoints）
 ```sh
+    gdb -x in ./a.out
+
     b filename.cpp:10 # 在filename.cpp的第10行设置断点
     info b            # 查看所有断点信息
     d 1               # 删除编号为1的断点
@@ -61,6 +63,12 @@ draft: false
     > printf "x=%d at %s:%d\n", x, $_sargv[1], $bpnum
     > continue
     > end
+
+    x/4i $rip
+    x/8 $rsp-8
+    disp/x *(long*)($rsp)
+    disp/xi $rip
+    x/16xb 0x7fffffffdb28 # byte halr word g i char string
 ```
 ## 🖥️ 界面布局控制（layout） 
 ```sh
