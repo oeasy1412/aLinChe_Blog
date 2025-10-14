@@ -66,20 +66,32 @@ draft: false
     docker info
 
     # 镜像构建​
-    docker build -t helloworld .
+    docker build -t helloworld . # --build-arg 
     docker buildx build -t my_actix_web:v0.1 .
     docker buildx build --platform linux/amd64,linux/arm64 -t my_actix_web:v0.1 .
 
     # 配置
+    docker system df
     docker system prune
     lsof -i :8080
-    sudo vim /etc/docker/daemon.json
+    docker history <CONTAINER_ID>
 
+    sudo vim /etc/docker/daemon.json
     $ cat /etc/docker/daemon.json
     {
         "registry-mirrors": ["https://docker.mirrors.ustc.edu.cn/","https://registry.docker-cn.com"]
     }
+    docker info | grep "Registry Mirrors" -A 5
 ```
+#### hub.docker.com
+```sh
+docker login -u <name> # hub.scutosc.cn 可指定 hub
+docker tag mygo:latest alinche/mygo-dev:latest
+docker push alinche/mygo-dev:latest
+
+docker builder prune # 仅清理构建缓存
+```
+
 #### network
 ```sh
     docker network ls
@@ -239,3 +251,7 @@ lrwxrwxrwx 1 root root 0 Sep 18 15:16 uts -> 'uts:[4026532218]'
 sudo nsenter -t 25615 -n ip addr
 sudo nsenter -t 25615 -m -n ping 8.8.8.8 -c 1 # 没有 -n 将会使用宿主机的网络命名空间，这一点可以通过 tshark 证明
 ```
+
+## Q & A:
+- Q1: 为什么我不能通过docker隔离
+  - A1: 驱动通过硬件描述信息初始化之后就是一个内存中的程序，感觉可以做隔离，但别忘了内核是共享的，这个内存其实是内核空间中的内存，常见的驱动是一种​​内核模块​​。docker 本质是 **​​共享单一宿主机内核**​ ​的进程隔离环境。设备驱动是暴露read()write()ioctl()等接口供容器使用的，容器就一个用户空间的沙盒盒，没有驱动这一说。所以哪怕是--privileged，insmod也是到宿主机上，容器什么都没有
