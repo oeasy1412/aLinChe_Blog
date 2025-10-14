@@ -26,7 +26,7 @@ import { pluginCustomCopyButton } from "./src/plugins/expressive-code/custom-cop
 
 // https://astro.build/config
 export default defineConfig({
-	site: "https://aLinChe.vercel.app/",
+	site: "https://blog.alinche.dpdns.org/",
 	base: "/",
 	trailingSlash: "always",
 	integrations: [
