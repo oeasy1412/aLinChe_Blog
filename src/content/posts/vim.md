@@ -1,6 +1,6 @@
 ---
 title: Vim
-published: 2025-10-22
+published: 2025-05-01
 description: Vim 教程
 tags: [git]
 category: 教程
@@ -191,6 +191,8 @@ Vim 的许多命令遵循一种类似"语法"的结构：`[operator][count][moti
 
 - `:r !ls -l`: 读取外部命令的输出并插入到当前光标的下一行
 - `:r filename`: 将另一个文件的内容插入
+
+- `:!cat /proc/<pid>/map`: 查看 /proc
 
 #### Vim Buffer
 
