@@ -244,6 +244,33 @@ lrwxrwxrwx 1 root root 0 Sep 18 15:16 uts -> 'uts:[4026532218]'
 # 4. 性能开销: 每次文件操作需查询映射表 `/proc/<pid>/uid_map` ，进行一次 UID/GID 的转换
 
 ## 结论就是：Docker 将 “开箱即用的易用性” 和 “最大的向后兼容性” 放在了比 “默认的最高安全性” 更高的优先级上。
+
+sudo lsns
+        NS TYPE   NPROCS   PID USER             COMMAND
+4026531834 time      103     1 root             /sbin/init
+4026531835 cgroup    102     1 root             /sbin/init
+4026531837 user      102     1 root             /sbin/init
+4026531840 net       101     1 root             /sbin/init
+4026532206 ipc       102     1 root             /sbin/init
+4026532217 mnt        97     1 root             /sbin/init
+4026532218 uts        99     1 root             /sbin/init
+4026532219 pid       102     1 root             /sbin/init
+4026532220 mnt         1    93 root             /lib/systemd/systemd-udevd
+4026532221 uts         1    93 root             /lib/systemd/systemd-udevd
+4026532222 mnt         1   191 systemd-network  /lib/systemd/systemd-networkd
+4026532223 mnt         1   221 systemd-timesync /lib/systemd/systemd-timesyncd
+4026532224 mnt         1   285 systemd-resolve  /lib/systemd/systemd-resolved
+4026532225 uts         1   221 systemd-timesync /lib/systemd/systemd-timesyncd
+4026532228 net         1   696 rtkit            /usr/libexec/rtkit-daemon
+4026532285 uts         1   307 root             /lib/systemd/systemd-logind
+4026532286 mnt         1   307 root             /lib/systemd/systemd-logind
+4026531856 user        1 50315 root             /bin/sh
+4026532357 mnt         1 50315 root             /bin/sh
+4026532358 uts         1 50315 root             /bin/sh
+4026532359 ipc         1 50315 root             /bin/sh
+4026532360 pid         1 50315 root             /bin/sh
+4026532361 cgroup      1 50315 root             /bin/sh
+4026532262 net         1 50315 root             /bin/sh
 ```
 
 ### Network Namespace

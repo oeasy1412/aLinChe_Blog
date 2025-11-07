@@ -26,11 +26,11 @@ draft: false
 pmap -x 102204  # pmap 的本质是 访问 `/proc/` 实现的
 102204:   /home/ubun/a.out (static)
 Address           Kbytes     RSS   Dirty Mode  Mapping
-0000000000400000       4       4       0 r---- a.out
-0000000000401000    1492    1148       8 r-x-- a.out
-0000000000576000     344     168       0 r---- a.out
+0000000000400000       4       4       0 r---- a.out # ELF 文件头及只读数据
+0000000000401000    1492    1148       8 r-x-- a.out # 代码段
+0000000000576000     344     168       0 r---- a.out # .rodata只读数据段
 00000000005cc000      44      44       8 r---- a.out
-00000000005d7000      12      12      12 rw--- a.out
+00000000005d7000      12      12      12 rw--- a.out # .data可读写数据段
 00000000005da000    4128      24      24 rw---   [ anon ] # .bss
 00000000009e2000     136      12      12 rw---   [ anon ] # [heap]
 00007ffff7ff9000      16       0       0 r----   [ anon ] # [vvar]
