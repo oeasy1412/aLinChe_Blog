@@ -2,7 +2,7 @@
 title: mmap
 published: 2025-05-10
 description: 进程的地址空间 pmap vDSO mmap
-tags: [OS, 内存管理]
+tags: [OS, 内存管理, syscall]
 category: OS
 draft: false
 ---

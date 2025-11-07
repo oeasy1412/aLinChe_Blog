@@ -2,7 +2,7 @@
 title: epoll
 published: 2025-10-28
 description: 现代网络编程基石：深入解析 I/O 多路复用及 select、poll、epoll
-tags: [OS, net]
+tags: [OS, syscall, net]
 category: OS
 draft: false
 ---

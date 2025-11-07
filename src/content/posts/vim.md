@@ -1,9 +1,9 @@
 ---
-title: Vim
+title: Vim 教程
 published: 2025-05-01
-description: Vim 教程
+description: Vim
 tags: [git]
-category: 教程
+category: git
 draft: false
 ---
 
@@ -178,6 +178,10 @@ Vim 的许多命令遵循一种类似"语法"的结构：`[operator][count][moti
 - `:q`: 退出 (如果文件有未保存的修改则会失败)。
 - `:q!`: 强制退出，不保存修改。
 - `:saveas 路径`: 保存文件到指定路径。
+
+#### set
+- `vim ~/.vimrc`: 
+- `:set un`: 
 
 #### ! 魔法 (! 表示后面跟的是一个外部 Shell 命令)
 

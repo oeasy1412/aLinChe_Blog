@@ -2,7 +2,7 @@
 title: Linux Signal
 published: 2025-08-31
 description: Signal_handelr
-tags: [OS, signal]
+tags: [OS, signal, syscall]
 category: OS
 draft: false
 ---
