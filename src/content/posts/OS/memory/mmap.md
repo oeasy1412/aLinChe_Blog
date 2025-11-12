@@ -50,11 +50,48 @@ total kB            6316    1432      76
 vDSO的解决方案是：内核在每个进程启动时，主动将一小块包含这些系统调用实现代码的内存页映射到该进程的只读地址空间中。 当进程调用这些函数时，libc会检查是否存在vDSO，如果存在，就直接在用户态调用vDSO中的函数，像调用一个普通的共享库函数一样，**完全避免了陷入内核的上下文切换**，从而大大提升了性能。
 
 在pmap的输出中，名为[vdso]的内存段就是这个由内核提供的、用于加速系统调用的“虚拟”共享库。
+```cpp
+#include <stdio.h>
+#include <sys/time.h>
+#include <time.h>
+#include <unistd.h>
+
+double gettime() {
+    struct timeval t;
+    gettimeofday(&t, NULL); // trapless system call
+    return t.tv_sec + t.tv_usec / 1000000.0;
+}
+
+int main() {
+    printf("Time stamp: %ld\n", time(NULL)); // trapless system call
+    double st = gettime();
+    sleep(1);
+    double ed = gettime();
+    printf("Time: %.6lfs\n", ed - st);
+}
+
+```
+```sh
+cat /proc/self/maps | grep -E 'vdso|vsyscall'
+7ffeb954e000-7ffeb9550000 r-xp 00000000 00:00 0  [vdso]
+
+strace -e trace=clock_gettime,gettimeofday,time ./a.out 
+Time stamp: 1762651250
+Time: 1.000233s
++++ exited with 0 +++
+
+cat /sys/devices/system/clocksource/clocksource0/current_clocksource
+hyperv_clocksource_tsc_page # 我这里是 WSL
+# 物理机或VMware虚拟机上，通常能看到tsc(Time Stamp Counter)
+```
 
 ### mmap: 内存映射的瑞士军刀
 `mmap` (memory map) 是一个非常强大且核心的Linux系统调用。其本质作用是在进程的虚拟地址空间中创建一个新的内存映射VMA。
 ```c
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+int munmap(void *addr, size_t length);
+
+int mprotect(void *addr, size_t length, int prot);
 ```
 *   **“一切皆文件”哲学的体现**: `mmap`可以将一个文件（由文件描述符`fd`和`offset`指定）的**一部分**直接映射到进程的**虚拟内存**中。 之后，映射建立后，程序可以像访问普通内存数组一样，通过指针来读写文件内容，而无需调用 `read()` 或 `write()` 系统调用。这避免了数据在内核缓冲区和用户缓冲区之间的多次拷贝，极大地提高了大文件或频繁访问文件的I/O效率。
 *   **匿名映射**: 当 flags 参数包含 MAP_ANONYMOUS 并且 fd 参数设为-1时，mmap 会创建一块不与任何文件关联的匿名内存区域。这块内存会被初始化为0。malloc 在申请大块内存时，内部通常就会使用 mmap 的匿名映射来实现。
@@ -155,3 +192,44 @@ Entry point 0x1100:
 4.  **恢复权限**: 为了安全，修复完成后，再次调用`mprotect`将内存页的权限恢复为只读、可执行 (`PROT_READ | PROT_EXEC`)。
 
 通过这种方式，可以在服务不中断的情况下，完成对线上BUG的紧急修复。
+**示例代码**：DSU(Dynamic Software Updating) 动态软件更新（热补丁）
+```c
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+void foo() { printf("In old function %s\n", __func__); }
+void foo_new() { printf("In new function %s\n", __func__); }
+
+// 48 b8 ff ff ff ff ff ff ff ff    movabs $0xffffffffffffffff,%rax # 将一个立即数mov到%rax
+// ff e0                            jmpq   *%rax
+void DSU(void* old, void* new) {
+#define ROUNDDOWN(ptr) ((void*)(((uintptr_t)ptr) & ~0xfff))
+    size_t pg_size = sysconf(_SC_PAGESIZE);
+    char* pg_boundary = ROUNDDOWN(old);
+    int flags = PROT_WRITE | PROT_READ | PROT_EXEC;
+
+    printf("Dynamically updating...\n");
+    fflush(stdout);
+
+    mprotect(pg_boundary, 2 * pg_size, flags);
+    memcpy(old + 0, "\x48\xb8", 2);
+    memcpy(old + 2, &new, 8);
+    memcpy(old + 10, "\xff\xe0", 2);
+    mprotect(pg_boundary, 2 * pg_size, flags & ~PROT_WRITE);
+
+    printf("Done\n");
+    fflush(stdout);
+}
+
+int main() {
+    foo();
+    DSU(foo, foo_new);
+    foo();
+}
+// 因为一个函数体有可能跨越两个内存页的边界。为了确保整个12字节的补丁都能被完整写入，需要修改2*pg_size的内存页
+// 在更复杂的场景下，可能需要额外的指令（如 mfence）或缓存刷新操作来确保CPU能看到修改后的代码。
+```

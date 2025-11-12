@@ -33,6 +33,15 @@ git config --global user.email "1129332011@qq.com"
 git config --global core.editor vim
 git config --global color.ui true
 
+vim ~/.vimrc
+:set mouse=a
+:set nu
+:set et
+:set sw=4
+:set sts=4
+:set hlsearch
+
+
 sudo apt install python3 python3-pip
 python -m pip install --upgrade pip
 pip config set global.index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
@@ -230,6 +239,8 @@ chmod +x Anaconda3-2025.06-1-Linux-x86_64.sh
 bash ./Anaconda3-2025.06-1-Linux-x86_64.sh
 
 conda info --envs
+conda deactivate
+conda config --set auto_activate_base false
 ## d2l
 conda create -n d2l-env python=3.11
 conda activate d2l-env
@@ -254,7 +265,7 @@ conda config --show
 conda env list
 
 ## ROCm
-https://github.com/likelovewant/ROCmLibs-for-gfx1103-AMD780M-APU/ # 鸡哥无界14X
+https://github.com/likelovewant/ROCmLibs-for-gfx1103-AMD780M-APU/ # 鸡哥无界14X（
 conda create -n ROCm python=3.11
 conda activate ROCm
 # pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/rocm6.3
@@ -357,6 +368,7 @@ tailscale status
 # IP  Name  User  OS status
 
 # More 
+tailscale status --json
 tailscale set
 tailscale configure
 tailscale file
@@ -407,7 +419,7 @@ sudo tailscale set --advertise-exit-node
 # 停止宣告出口节点​
 sudo tailscale up --advertise-exit-node=false
 
-# client 
+## client 
 sudo tailscale up --exit-node=<节点IP或主机名> --exit-node-allow-lan-access
 # 清除出口节点配置
 sudo tailscale up --exit-node=""
@@ -493,4 +505,211 @@ https://tbtool.dawnstd.cn/
 ## MinGW-w64
 ```sh
 https://winlibs.com/
+```
+
+## OpenVPN
+```sh
+# sudo apt update && sudo apt upgrade -y
+sudo apt install openvpn easy-rsa -y
+mkdir ~/openvpn-ca
+cd ~/openvpn-ca
+vim vars
+set_var EASYRSA_REQ_COUNTRY    "CN"
+set_var EASYRSA_REQ_PROVINCE   "Beijing"
+set_var EASYRSA_REQ_CITY       "Beijing"
+set_var EASYRSA_REQ_ORG        "MyVPN"
+set_var EASYRSA_REQ_EMAIL      "admin@myvpn.com"
+set_var EASYRSA_REQ_OU         "MyVPN CA"
+set_var EASYRSA_KEY_SIZE       4096
+set_var EASYRSA_CA_EXPIRE      3650
+set_var EASYRSA_CERT_EXPIRE    1080
+
+sudo ln -s /usr/share/easy-rsa/easyrsa ./easyrsa
+./easyrsa init-pki
+./easyrsa build-ca nopass # openvpn-CA
+## 生成服务器证书和密钥
+./easyrsa gen-req server nopass # 这里假设你的name=openvpn-server
+./easyrsa sign-req server server
+./easyrsa gen-dh # 等待
+openvpn --genkey secret pki/ta.key
+
+## ​创建客户端证书请求和密钥
+./easyrsa gen-req client1 nopass
+./easyrsa sign-req client client1
+
+sudo mkdir /etc/openvpn/server
+sudo cp ./pki/ca.crt /etc/openvpn/server/
+sudo cp ./pki/issued/server.crt /etc/openvpn/server/
+sudo cp ./pki/private/server.key /etc/openvpn/server/
+sudo cp ./pki/dh.pem /etc/openvpn/server/
+sudo cp ./pki/ta.key /etc/openvpn/server/
+
+sudo vim /etc/openvpn/server/server.conf
+## --- 修改server.conf ---
+port 1194
+proto tcp-server
+proto tcp6-server
+dev tun
+
+# 证书路径
+ca /etc/openvpn/server/ca.crt
+cert /etc/openvpn/server/server.crt
+key /etc/openvpn/server/server.key
+dh /etc/openvpn/server/dh.pem
+tls-crypt /etc/openvpn/server/ta.key
+
+# 网络配置
+;topology subnet
+server 10.8.0.0 255.255.255.0
+push "redirect-gateway def1 bypass-dhcp"
+push "dhcp-option DNS 1.1.1.1"
+push "dhcp-option DNS 8.8.8.8"
+;push "route 192.168.1.0 255.255.255.0"
+client-to-client
+;client-config-dir /etc/openvpn/ccd
+
+# 安全强化
+cipher AES-256-GCM
+auth SHA512
+tls-version-min 1.2
+tls-cipher TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384
+
+# 连接设置
+keepalive 10 120
+user nobody
+group nogroup
+persist-key
+persist-tun
+
+# 日志记录
+status /var/log/openvpn/openvpn-status.log
+log /var/log/openvpn/openvpn.log
+verb 3
+
+# 额外安全措施
+# reneg-sec 3600  # 每小时重新协商密钥
+# remote-cert-tls client
+# verify-client-cert require
+
+
+## --- 配置转发设置 ---
+sudo vim /etc/sysctl.conf
+# 取消注释
+#net.ipv4.ip_forward=1
+sudo sysctl -p
+sudo ufw allow 1194/tcp
+sudo ufw allow ssh
+
+# ​​设置 NAT 规则 (伪装):​​ 这是为了让 VPN 客户端能通过服务器访问互联网
+# sudo vim /etc/ufw/before.rules
+# NAT table rules for OpenVPN
+# *nat
+# :POSTROUTING ACCEPT [0:0]
+# -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+# COMMIT
+sudo vim /etc/default/ufw
+DEFAULT_FORWARD_POLICY="ACCEPT"
+
+sudo mkdir -p /etc/openvpn/ccd
+sudo vim /etc/openvpn/ccd/client1
+ifconfig-push 10.8.0.6 10.8.0.1
+iroute 192.168.1.0 255.255.255.0
+
+sudo systemctl -f enable openvpn-server@server.service
+sudo systemctl start openvpn-server@server.service
+
+sudo iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o wlp3s0 -j MASQUERADE
+sudo iptables -A FORWARD -i wlp3s0 -o tun0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+sudo iptables -A FORWARD -i tun0 -o wlp3s0 -j ACCEPT
+
+sudo ip6tables -A FORWARD -i tun0 -o eno1 -j ACCEPT
+sudo ip6tables -A FORWARD -i eno1 -o tun0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+sudo apt install iptables-persistent
+sudo netfilter-persistent save
+
+## --- client ---
+vim ./client.ovpn
+
+##############################################
+# OpenVPN 客户端配置文件
+# 最后更新: 2025-09-03
+##############################################
+
+client
+
+# 网络设置
+dev tun
+proto tcp-client
+proto tcp6-client
+;proto udp
+
+# 服务器连接信息
+remote scut6.alinche.dpdns.org 1194
+;remote your-server-ip 1194  # 备用服务器地址
+resolv-retry infinite
+
+# 连接行为
+nobind
+persist-key
+persist-tun
+remote-cert-tls server
+verify-x509-name C10VPN-server name
+
+# 安全设置
+cipher AES-256-GCM
+auth SHA256
+auth-nocache
+tls-version-min 1.2
+tls-cipher TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384
+;ignore-unknown-option block-outside-dns
+;reneg-sec 3600
+
+# 性能优化
+;sndbuf 0
+;rcvbuf 0
+;comp-lzo no  # 禁用压缩（安全推荐）
+;compress lz4-v2  # 如果需要压缩则启用
+
+# 日志和诊断
+verb 3
+;mute 20
+;log openvpn.log  # 启用日志记录（调试时使用）
+
+# 证书和密钥嵌入部分
+<ca>
+-----BEGIN CERTIFICATE-----
+
+-----END CERTIFICATE-----
+</ca>
+
+<cert>
+-----BEGIN CERTIFICATE-----
+
+-----END CERTIFICATE-----
+</cert>
+
+<key>
+-----BEGIN PRIVATE KEY-----
+
+-----END PRIVATE KEY-----
+</key>
+
+<tls-crypt>
+-----BEGIN OpenVPN Static key V1-----
+
+-----END OpenVPN Static key V1-----
+</tls-crypt>
+
+## 数据来源
+sudo cat /etc/openvpn/server/ca.crt
+sudo cat ./pki/issued/client1.crt
+sudo cat ./pki/private/client1.key
+sudo cat /etc/openvpn/server/ta.key
+
+# sudo openssl verify -CAfile /etc/openvpn/server/ca.crt ./pki/issued/client1.crt
+
+## --- ddns-go --- （可选）
+docker run -d --name ddns-go --restart=always --net=host -v /opt/ddns-go:/root jeessy/ddns-go
+# 访问 http://docker对应主机IP:9876/
 ```
