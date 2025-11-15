@@ -27,7 +27,7 @@ echo $SHELL
 sudo timedatectl set-timezone Asia/Shanghai
 date
 
-sudo apt install -y vim git htop
+sudo apt install -y vim git openssh-server htop
 git config --global user.name "aLinChe"
 git config --global user.email "1129332011@qq.com"
 git config --global core.editor vim
@@ -195,6 +195,10 @@ https://github.com/oeasy1412/nixos_config/
 ```sh
 ## LTSC is all you need.
 https://next.itellyou.cn/Original/
+
+## MAS
+https://massgrave.dev/
+irm https://get.activated.win | iex
 
 ## WSL2
 “控制面板”->“程序”->“启用或关闭Windows功能”中勾选“适用于 Linux 的 Windows 子系统”和“虚拟机平台”
