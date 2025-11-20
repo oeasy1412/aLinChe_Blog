@@ -1,7 +1,7 @@
 ---
 title: OpenList网盘
 published: 2025-06-12
-description: Nginx + DDNS-GO + OpenList
+description: Nginx + DDNS-GO + OpenList + Cloudflare tunnel
 tags: [net]
 category: net
 draft: false
@@ -220,4 +220,25 @@ sudo systemctl restart openlist.service
 sudo systemctl status openlist.service
 
 journalctl -u openlist.service -f
+```
+
+## Cloudflare tunnel
+```sh
+# https://one.dash.cloudflare.com/<id>/networks/connectors
+sudo apt-get install cloudflared # 要用官网的命令添加 apt repo
+# docker
+docker run cloudflare/cloudflared:latest tunnel --no-autoupdate run --token [YOUR_TOKEN]
+
+cloudflared tunnel login
+
+sudo cloudflared service install
+sudo systemctl start cloudflared
+sudo systemctl enable cloudflared
+
+cloudflared tunnel list
+journalctl -a -u cloudflared -n 10
+
+# 强制使用 HTTP2
+sudo vim /etc/systemd/system/cloudflared.service
+ExecStart=/usr/bin/cloudflared --no-autoupdate tunnel run --protocol http2 --token ...
 ```

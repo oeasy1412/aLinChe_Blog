@@ -123,6 +123,51 @@ sudo hostnamectl set-hostname aLinChe
 sudo vim /etc/netplan/50-cloud-init.yaml
 # systemctl
 systemctl --user list-unit-files --type=service --state=enabled
+
+## Linux Kernal
+make menuconfig
+grep "=m" .config
+grep "=y" .config
+
+bear -- make -n
+make ARCH=x86_64 compile_commands.json -j$(nproc) # x86_64
+make -j$(nproc)
+sudo make modules_install
+sudo make install
+
+make -j$(nproc) bzImage
+cp arch/x86/boot/bzImage vmlinuz-x86_64
+# if ARM aarch64: make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc) # arch/arm64/boot/Image
+
+# make menuconfig
+Kernel hacking  --->
+    Compile-time checks and compiler options  --->
+        [*] Compile the kernel with debug info
+        [*]   Provide GDB scripts for kernel debugging
+Device Drivers  --->
+    Network device support  --->
+        [*]   Network core driver support
+        <*>     Virtual eXtensible Local Area Network (VXLAN)
+        <*>     Universal TUN/TAP device driver support
+        [*]   Ethernet driver support  --->
+        -*-   PHY Device support and infrastructu  --->
+        -*-   MDIO bus device drivers  --->
+        # ​​USB网卡：
+        <*>   USB Network Adapters  --->
+        ​# ​无线网卡​​：
+        [*]   Wireless LAN  --->
+        # 虚拟机网卡​​：
+        <*>   VMware VMXNET3 ethernet driver
+        <M>   Simulated networking device
+        <M>   Failover driver
+    Virtio drivers --->
+Networking support  --->
+    Networking options  --->
+        [*] TCP/IP networking
+        [*]   IP: advanced router
+        [*]     IP: policy routing
+        <*>   The IPv6 protocol  --->
+        <*> 802.1d Ethernet Bridging
 ```
 
 
@@ -430,6 +475,13 @@ sudo tailscale up --exit-node=""
 ```
 
 
+## Sunshine & Moonlight
+```sh
+https://github.com/LizardByte/Sunshine/
+https://github.com/moonlight-stream/
+
+https://github.com/Axixi2233/moonlight-android/ # 阿西西安卓端修改版
+```
 
 
 ## Termux

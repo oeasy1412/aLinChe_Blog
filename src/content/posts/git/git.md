@@ -146,6 +146,20 @@ git clone --recurse-submodules https://github.com/user/repo.git # 克隆包含�
 git submodule update --init --recursive # 更新子模块
 ```
 
+## 修改历史二进制文件以减小clone大小
+```sh
+pip install git-filter-repo # ~/.local/bin/git-filter-repo
+git filter-repo --file-info-callback '
+   if filename == b"vmlinuz":
+      with open("bin/vmlinuz/vmlinuz", "rb") as f:
+            new_content = f.read()
+      new_blob_id = value.insert_file_with_contents(new_content)
+      return (filename, mode, new_blob_id)
+   else:
+      return (filename, mode, blob_id)
+   '
+```
+
 ## 最佳实践总结
 1. 提交规范​​：使用语义化提交信息（feat:, fix:, docs:, 等）
 2. ​分支策略​​：

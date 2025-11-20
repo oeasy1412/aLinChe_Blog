@@ -61,7 +61,9 @@ draft: false
     docker port <CONTAINER_ID>
     docker top <CONTAINER_ID>
     docker logs -tf --tail 10 <CONTAINER_ID>
-    docker inspect --format='{{.State.Pid}}' <CONTAINER_ID> # JSON格式底层元数据
+    docker logs <CONTAINER_ID> | grep -i error
+    docker inspect --format='{{.State.Pid}}' <CONTAINER_ID>  # JSON格式底层元数据
+    docker inspect --format='{{.Config.Cmd}}' <CONTAINER_ID> # 查看完整的启动命令参数
     docker stats --all
     docker info
 
