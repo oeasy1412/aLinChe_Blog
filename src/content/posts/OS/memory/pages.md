@@ -62,6 +62,7 @@ SRAM存储实际数据
 
 > 下面是 AMD Ryzen 5 3500X 6-Core Processor 的cpu相关信息
 ```sh
+lscpu | grep "cache" # 快速查看 cache 信息
 cat /proc/cpuinfo | grep -i tlb
     TLB size        : 3072 4K pages  # 所有核心输出相同 4KB页TLB容量​​为3072条目
 dmesg | grep -i tlb

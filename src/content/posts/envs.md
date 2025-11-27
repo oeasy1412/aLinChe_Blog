@@ -450,6 +450,9 @@ tailscale up --login-server=http://<headscale-server>:8080 --authkey <key>
 echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.conf
 echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p  # 立即生效
+# iptables 
+sudo iptables -A FORWARD -i tailscale0 -j ACCEPT
+sudo iptables -A FORWARD -o tailscale0 -m state --state RELATED,ESTABLISHED -j ACCEPT
 # 添加流量伪装规则（替换 youreth0 为实际外网网卡名）
 sudo iptables -t nat -A POSTROUTING -o youreth0 -j MASQUERADE
 # 保存规则（若使用 netfilter-persistent）
@@ -459,8 +462,8 @@ echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
 echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
 sudo sysctl -p /etc/sysctl.d/99-tailscale.conf
 
-sudo tailscale up --advertise-route=192.168.199.0/24
 sudo tailscale up --advertise-exit-node
+sudo tailscale up --advertise-routes=192.168.199.0/24 --advertise-exit-node --accept-routes
 sudo tailscale set --advertise-exit-node
 
 ![Tailscale 管理后台](https://login.tailscale.com/admin/machines) ​Edit route settings​ -> ​​Use as exit node​​
@@ -472,6 +475,241 @@ sudo tailscale up --advertise-exit-node=false
 sudo tailscale up --exit-node=<节点IP或主机名> --exit-node-allow-lan-access
 # 清除出口节点配置
 sudo tailscale up --exit-node=""
+```
+```conf
+## tailscale ACLs
+{
+	// ============ 1. 定义用户组 ============
+	"groups": {
+		"group:infra":      ["oeasy1412@github"],
+		"group:developers": [],
+		"group:support":    [],
+	},
+
+	// ============ 2. 定义标签及所有者 ============
+	"tagOwners": {
+		"tag:prod-servers":     ["group:infra"],
+		"tag:dev-servers":      ["group:infra"],
+		"tag:public-resources": ["group:infra"],
+		"tag:exit-node":        ["group:infra"],
+		"tag:user-devices":     ["autogroup:admin"],
+	},
+
+	// ============ 主机别名 ============
+	"hosts": {
+		"corp-network": "192.168.199.0/24",
+	},
+
+	// ============ 3. 核心访问规则 ============
+	"acls": [
+		// ---- 基础访问规则 ----
+		// 禁止所有流量（覆盖默认allow-all）
+		// { "action": "deny", "src": ["*"], "dst": ["*:*"] },
+		// 允许用户访问自己的设备
+		{
+			"action": "accept",
+			"src":    ["autogroup:member"], // 所有已认证成员
+			"dst":    ["autogroup:self:*"],
+		},
+
+		// ---- 生产环境访问 ----
+		// 基础设施团队可访问所有生产服务器
+		{
+			"action": "accept",
+			"src":    ["group:infra"],
+			"dst":    ["tag:prod-servers:*"],
+			// "srcPosture": ["posture:secure-access"],
+		},
+		// 支持团队只能访问特定端口
+		{
+			"action": "accept",
+			"src":    ["group:support"],
+			"dst": [
+				"tag:prod-servers:22",
+				"tag:prod-servers:80",
+				"tag:prod-servers:443",
+				"tag:prod-servers:8080",
+			],
+		},
+
+		// ---- 开发环境访问 ----
+		// 开发者访问开发服务器
+		{
+			"action": "accept",
+			"src":    ["group:developers"],
+			"dst":    ["tag:dev-servers:*"],
+		},
+
+		// ==== 公共资源访问 ====
+		// 允许访问公共资源
+		{
+			"action": "accept",
+			// "src":    ["*"],
+			"src": ["autogroup:member"],
+			"dst": ["tag:public-resources:*"],
+		},
+
+		// ==== 出口节点规则 ====
+		{
+			"action": "accept",
+			"src":    ["group:infra"],
+			"dst":    ["tag:exit-node:*"],
+		},
+		// 允许 infra 组的成员使用出口节点访问互联网
+		{
+			"action": "accept",
+			"src":    ["group:infra"],
+			"dst":    ["autogroup:internet:*"],
+		},
+		// 允许 infra 组的成员访问公司子网
+		{
+			"action": "accept",
+			"src":    ["group:infra"],
+			"dst":    ["corp-network:*"],
+		},
+	],
+
+	// ============ 自动审批设置 ============
+	"autoApprovers": {
+		"exitNode": ["group:infra", "tag:exit-node"],
+		"routes": {
+			"192.168.199.0/24": ["group:infra"],
+		},
+	},
+
+	// ============ 安全要求 ============
+	// "postures": {
+	// 	"posture:secure-access": [
+	// 		"node:tsAutoUpdate",                   // 必须开启自动更新
+	// 		"node:tsReleaseTrack == 'stable'", // 必须使用稳定版本
+	// 		"node:os != 'windows'",                // 禁止从Windows设备访问
+	// 		"node:hasSSHKeys == true"              // 必须配置SSH密钥
+	// 	],
+	// },
+
+	// ============ 4. SSH访问控制 ============
+	"ssh": [
+		// 管理员可SSH到所有设备
+		{
+			"action": "accept",
+			"src":    ["group:infra"],
+			"dst": [
+				"tag:prod-servers",
+				"tag:dev-servers",
+				"tag:public-resources",
+				"tag:exit-node",
+			],
+			"users": ["root", "autogroup:nonroot"],
+		},
+
+		// 开发者只能SSH到开发服务器
+		{
+			"action": "check",
+			"src":    ["group:developers"],
+			"dst":    ["tag:dev-servers"],
+			"users":  ["autogroup:nonroot"],
+		},
+	],
+
+	// ============ 5. 规则测试 ============
+	"tests": [
+		// 验证管理员访问权限
+		{
+			"src":    "oeasy1412@github",
+			"accept": ["tag:prod-servers:22"],
+			"deny":   ["tag:dev-servers:22"],
+		},
+	],
+}
+```
+
+
+## codex
+```sh
+https://www.bilibili.com/video/BV1wm4UzfEbr/
+```
+
+
+## cline with VSCode
+```json
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "disabled": false,
+      "autoApprove": []
+    },
+    "filesystem": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem"
+      ],
+      "disabled": false,
+      "autoApprove": []
+    },
+    "excel": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "uvx",
+        "excel-mcp-server",
+        "stdio"
+      ],
+      "disabled": false,
+      "autoApprove": []
+    },
+	// STDIO
+    "alinche_math": {
+      "timeout": 60,
+      "type": "stdio",
+      "command": "D:\\VScode\\PyPI\\my-MCP\\alinche_math\\.venv\\Scripts\\python.exe",
+      "args": [
+        "main.py",
+        "stdio"
+      ],
+      "disabled": false,
+      "autoApprove": [],
+      "cwd": "D:\\VScode\\PyPI\\my-MCP\\alinche_math"
+    }
+	// SSE
+    "alinche_math": {
+      "url": "http://localhost:8000/sse",
+      "disabled": false,
+      "autoApprove": []
+    },
+	// streamable HTTP
+    "alinche_math": {
+      "url": "http://localhost:8000/mcp",
+      "disabled": false,
+      "autoApprove": []
+    },
+	// PyPI 个人发布的pip包程序
+    "alinche-math-mcp-server": {
+      "autoApprove": [],
+      "disabled": false,
+      "timeout": 10,
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "uvx",
+        "alinche-math-mcp-server",
+        "stdio"
+      ]
+    }
+  }
+}
+```
+
+
+## Obsidian
+```sh
+https://www.bilibili.com/video/BV1fZCyBYEuT/
 ```
 
 
