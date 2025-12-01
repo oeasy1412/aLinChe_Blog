@@ -28,4 +28,4 @@ yarn.lock
 
 # obsidian
 .obsidian/
-
+.smtcmp_json_db

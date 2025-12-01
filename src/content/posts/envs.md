@@ -476,8 +476,8 @@ sudo tailscale up --exit-node=<节点IP或主机名> --exit-node-allow-lan-acces
 # 清除出口节点配置
 sudo tailscale up --exit-node=""
 ```
-```conf
-## tailscale ACLs
+```json
+// tailscale ACLs
 {
 	// ============ 1. 定义用户组 ============
 	"groups": {

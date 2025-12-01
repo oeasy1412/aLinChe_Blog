@@ -33,7 +33,7 @@ docker exec my-nginx nginx -s reload
 # config
 vim my-nginx/nginx.conf
 ```
-```conf
+```nginx
 user nginx;
 worker_processes auto;
 error_log logs/error.log error; # notice;
