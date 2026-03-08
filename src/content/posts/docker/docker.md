@@ -174,8 +174,8 @@ struct mnt_namespace {
     // ... 其他信息
 };
 ```
-- chroot("/new_root") 进程级操作：仅修改了 `current->fs->root`，完全没有触碰 `current->nsproxy->mnt_ns`
-- pivot_root("new_root", "put_old") 命名空间级操作：直接作用于Mount Namespace，同时修改`current->fs->root` 和 `current->nsproxy->mnt_ns->root`
+- chroot("/new_root") 进程级操作：仅修改了 `current->fs->root`，只修改了虚假的根而挂载树没变，完全没有触碰 `current->nsproxy->mnt_ns`
+- pivot_root("new_root", "put_old") 命名空间级操作：直接作用于 Mount Namespace，修改文件系统挂载树，同时修改`current->fs->root` 和 `current->nsproxy->mnt_ns->root`
 ```sh
 # 查看容器进程的根目录链接到了哪里
 sudo ls -l /proc/$CONTAINER_PID/root
@@ -190,7 +190,7 @@ sudo nsenter -t 25615 -m top
 
 ### UTS (Unix Time-sharing System) Namespace —— 隔离主机名和域名
 UTS 命名空间的核心且唯一的功能就是：隔离 hostname (主机名) 和 domainname (NIS 域名)
-- 身份标识: 主机名是网络中一台计算机最基本的身份标识。对于容器来说，拥有一个独立的主机名，而不是继承宿主机的名字（，对于服务发现、日志记录、配置管理和网络识别都至关重要。它让容器在逻辑上看起来更像一台独立的机器。
+- 身份标识: 主机名是网络中一台计算机最基本的身份标识。对于容器来说，拥有一个独立的主机名，而不是继承宿主机的名字，对于服务发现、日志记录、配置管理和网络识别都至关重要。它让容器在逻辑上看起来更像一台独立的机器。
 - 配置隔离: 许多应用程序和服务在启动时会读取系统的主机名来生成默认配置、注册自己或进行其他初始化操作。UTS 命名空间确保了容器内的应用获取到的是容器专属的主机名，从而避免了配置混乱。
 - 满足应用期望: 一些软件被设计为在独立的主机上运行。UTS 命名空间满足了这些软件的运行环境期望，使得它们可以无缝地被容器化。
 

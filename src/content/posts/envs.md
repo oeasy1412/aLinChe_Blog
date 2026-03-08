@@ -624,13 +624,169 @@ sudo tailscale up --exit-node=""
 ```
 
 
-## codex
+## Claude Code
 ```sh
-https://www.bilibili.com/video/BV1wm4UzfEbr/
+node -v && npm -v # 如果考虑用fnm: curl -fsSL https://fnm.vercel.app/install | bash
+npm install -g @anthropic-ai/claude-code
+npm install -g @musistudio/claude-code-router
+
+vim ~/.config/fish/config.fish
+function gptcc
+    env ANTHROPIC_BASE_URL=https://model.imkk.us \
+        ANTHROPIC_AUTH_TOKEN="sk-你的中转key" \
+        claude $argv
+end
+
+function ccrc
+    cp ~/.claude-code-router/config-base.json ~/.claude-code-router/config.json
+    and ccr code
+end
+
+function ccr-free
+    cp ~/.claude-code-router/config-free.json ~/.claude-code-router/config.json
+    and ccr code
+end
+# alias ccr-free='cp ~/.claude-code-router/config-free.json ~/.claude-code-router/config.json && ccr code'
+
+gptcc ---dangerously-skip-permissions 
+ccr stop && ccr start 
+ccr-free 
+
+## 配置ccr: ~/.claude-code-router/config.json
+vim ~/.claude-code-router/config-free.json 
+{
+  "LOG": true,
+  "LOG_LEVEL": "info",
+  "PORT": 3456,
+  "Providers": [
+    {
+      "name": "zhipu",
+      "api_base_url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+      "api_key": "", 
+      "models": [
+        "glm-4.6v-flash",
+        "glm-4.5-flash",
+        "glm-4.1v-thinking-flash",
+        "glm-4-flash"
+      ],
+      "transformer": "openai"
+    }
+  ],
+  "StatusLine": {
+    "enabled": true,
+    "currentStyle": "default",
+    "default": {
+      "modules": [
+        {
+          "type": "workDir",
+          "icon": "",
+          "text": "{{workDirName}}",
+          "color": "#66CCFF"
+        },
+        {
+          "type": "gitBranch",
+          "icon": "🌿",
+          "text": "({{gitBranch}})",
+          "color": "bright_green"
+        },
+        {
+          "type": "model",
+          "icon": "",
+          "text": "{{model}}",
+          "color": "#00FFCC"
+        },
+        {
+          "type": "usage",
+          "icon": "📊",
+          "text": "{{inputTokens}} → {{outputTokens}}",
+          "color": "#EE0000",
+          "background": ""
+        }
+      ]
+    },
+    "powerline": {
+      "modules": [
+        {
+          "type": "workDir",
+          "icon": "󰉋",
+          "text": "{{workDirName}}",
+          "color": "bright_blue"
+        },
+        {
+          "type": "gitBranch",
+          "icon": "🌿",
+          "text": "{{gitBranch}}",
+          "color": "bright_green"
+        },
+        {
+          "type": "model",
+          "icon": "🤖",
+          "text": "{{model}}",
+          "color": "bright_yellow"
+        },
+        {
+          "type": "usage",
+          "icon": "📊",
+          "text": "{{inputTokens}} → {{outputTokens}}",
+          "color": "bright_magenta"
+        }
+      ]
+    }
+  },
+  "Router": {
+    "default": "zhipu,glm-4.5-flash",
+    "think": "zhipu,glm-4.1v-thinking-flash", 
+    "background": "zhipu,glm-4-flash",
+    "longContext": "zhipu,glm-4.5-flash",
+    "longContextThreshold": 128000,
+    "webSearch": "zhipu,glm-4.6v-flash"
+  }
+}
 ```
 
 
-## cline with VSCode
+## Codex
+```sh
+https://www.bilibili.com/video/BV1wm4UzfEbr/
+
+## ~/.codex/config.toml
+model = "gpt-5.1-codex-max" # gpt-4.1-mini 
+model_provider = "openai-chat-completions"
+preferred_auth_method = "apikey"
+model_reasoning_effort = "medium"
+
+[model_providers.openai-chat-completions]
+name = "OpenAI using Chat Completions"
+base_url = "https://model.imkk.us/v1"
+env_key = "IMKK_API_TOKEN" # set -Ux IMKK_API_TOKEN "sk-你的中转key"
+wire_api = "chat"
+query_params = {}
+stream_idle_timeout_ms = 600000
+
+# [model_providers.modelscope]
+# name = "modelscope"
+# base_url = "https://api-inference.modelscope.cn/v1"
+# env_key = "MODELSCOPE_API_KEY"
+
+[features]
+skills = true
+
+[projects."/home/username/DragonOS"]
+trust_level = "trusted"
+
+[projects."/home/username/linux6.6"]
+trust_level = "untrusted"
+```
+
+
+## Kilo Code with VSCode in Windows
+```sh
+# Kilo Code is fast!
+```
+
+
+## Cline with VSCode in Windows
+```sh
 ```json
 {
   "mcpServers": {
