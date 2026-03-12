@@ -1,5 +1,5 @@
 ---
-title: SIMD初识
+title: SIMD 初识
 published: 2025-11-08
 description: 从MMX、SSE到AVX2的性能飞跃
 tags: [CUDA, SIMD, 编译原理]

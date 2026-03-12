@@ -1,5 +1,5 @@
 ---
-title: OpenList网盘
+title: OpenList 网盘
 published: 2025-06-12
 description: Nginx + DDNS-GO + OpenList + Cloudflare tunnel
 tags: [net]
@@ -10,6 +10,15 @@ draft: false
 ## Nginx
 [Nginx GitHub 仓库](https://github.com/nginx/nginx)
 ```sh
+# 准备 nginx 配置文件和静态资源
+rm -rf /home/username/OpenList/my-nginx/nginx.conf && docker rm -f my-nginx tmp-nginx 2>/dev/null; \
+mkdir -p /home/username/OpenList/my-nginx/{conf.d,html,logs,ssl} && \
+docker run --rm -d --name tmp-nginx nginx && \
+docker cp tmp-nginx:/etc/nginx/nginx.conf /home/username/OpenList/my-nginx/nginx.conf && \
+docker cp tmp-nginx:/etc/nginx/conf.d /home/username/OpenList/my-nginx/ && \
+docker cp tmp-nginx:/usr/share/nginx/html /home/username/OpenList/my-nginx/ && \
+docker stop tmp-nginx
+# 运行 nginx 容器
 docker run -d \
   --name my-nginx \
   -p 80:80 \
@@ -17,7 +26,7 @@ docker run -d \
   -v /home/username/OpenList/my-nginx/nginx.conf:/etc/nginx/nginx.conf:ro \
   -v /home/username/OpenList/my-nginx/conf.d:/etc/nginx/conf.d:ro \
   -v /home/username/OpenList/my-nginx/html:/usr/share/nginx/html:ro \
-  -v /home/username/OpenList/my-nginx/logs:/etc/nginx/logs/nginx \
+  -v /home/username/OpenList/my-nginx/logs:/var/logs/nginx \
   -v /home/username/OpenList/my-nginx/ssl:/etc/nginx/ssl:ro \
   --restart=always \
   nginx

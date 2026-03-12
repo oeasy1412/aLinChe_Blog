@@ -277,8 +277,25 @@ int main() {
         n = read(connfd, buffer, MAXBUF - 1);
 
         if (n > 0) {
+            // Echo 模式：直接回显收到的数据
             printf("📨 收到 %zd 字节：%s", n, buffer);
             write(connfd, buffer, n);
+            // HTTP 模式：解析 HTTP 请求并回复简单的 HTML 页面
+            // printf("📨 收到 HTTP 请求 (共 %zd 字节):\n%s\n", n, buffer);
+            // char http_response[1024];
+            // const char* html_content = "<h1>Hello, Wireshark!</h1>";
+            // int content_len = strlen(html_content);
+            // sprintf(http_response,
+            //         "HTTP/1.1 200 OK\r\n"
+            //         "Content-Type: text/html; charset=UTF-8\r\n"
+            //         "Content-Length: %d\r\n" // 关键：告诉浏览器正文有多长
+            //         "Connection: keep-alive\r\n"
+            //         "\r\n"
+            //         "%s",
+            //         content_len,
+            //         html_content);
+            // // 发送给客户端
+            // write(connfd, http_response, strlen(http_response));
         } else if (n == 0) {
             printf("🔌 客户端关闭连接\n");
             break;
@@ -306,6 +323,26 @@ int main() {
 > nc localhost 8080
 Hello, World!
 Hello, World!
+# > curl -v localhost:8080
+```
+
+```sh
+# 切换到 HTTP 模式
+# wireshark 抓包 curl -v localhost:8080 验证
+tshark -i lo -f "tcp port 8080" # -w output.pcap
+Capturing on 'Loopback: lo'
+ ** (tshark:44643) 15:09:20.666044 [Main MESSAGE] -- Capture started.
+ ** (tshark:44643) 15:09:20.666251 [Main MESSAGE] -- File: "/tmp/wireshark_loJCCAM3.pcapng"
+    1 0.000000000    127.0.0.1 → 127.0.0.1    TCP 74 51233 → 8080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2568255227 TSecr=0 WS=128
+    2 0.000033900    127.0.0.1 → 127.0.0.1    TCP 74 8080 → 51233 [SYN, ACK] Seq=0 Ack=1 Win=65483 Len=0 MSS=65495 SACK_PERM=1 TSval=2568255227 TSecr=2568255227 WS=128
+    3 0.000052900    127.0.0.1 → 127.0.0.1    TCP 66 51233 → 8080 [ACK] Seq=1 Ack=1 Win=65536 Len=0 TSval=2568255227 TSecr=2568255227
+    4 0.000189700    127.0.0.1 → 127.0.0.1    HTTP 144 GET / HTTP/1.1 
+    5 0.000202600    127.0.0.1 → 127.0.0.1    TCP 66 8080 → 51233 [ACK] Seq=1 Ack=79 Win=65408 Len=0 TSval=2568255227 TSecr=2568255227
+    6 0.000271000    127.0.0.1 → 127.0.0.1    HTTP 195 HTTP/1.1 200 OK  (text/html)
+    7 0.000291900    127.0.0.1 → 127.0.0.1    TCP 66 51233 → 8080 [ACK] Seq=79 Ack=130 Win=65408 Len=0 TSval=2568255227 TSecr=2568255227
+    8 0.000611600    127.0.0.1 → 127.0.0.1    TCP 66 51233 → 8080 [FIN, ACK] Seq=79 Ack=130 Win=65536 Len=0 TSval=2568255227 TSecr=2568255227
+    9 0.000687000    127.0.0.1 → 127.0.0.1    TCP 66 8080 → 51233 [FIN, ACK] Seq=130 Ack=80 Win=65536 Len=0 TSval=2568255228 TSecr=2568255227
+   10 0.000720400    127.0.0.1 → 127.0.0.1    TCP 66 51233 → 8080 [ACK] Seq=80 Ack=131 Win=65536 Len=0 TSval=2568255228 TSecr=2568255228
 ```
 
 ---
