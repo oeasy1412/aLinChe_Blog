@@ -1,5 +1,5 @@
 ---
-title: gdb教程
+title: gdb 教程
 published: 2025-02-24
 description: gdb 命令
 image: ./images/cover1.png

@@ -67,6 +67,13 @@ draft: false
     docker stats --all
     docker info
 
+    # 卷
+    docker volume ls
+    docker volume create my_volume
+    docker volume inspect my_volume
+    docker volume rm (docker volume ls -q)
+
+
     # 镜像构建​
     docker build -t helloworld . # --build-arg 
     docker buildx build -t my_actix_web:v0.1 .

@@ -1,5 +1,5 @@
 ---
-title: 环境配置
+title: env 环境配置
 published: 2025-05-02
 description: 环境配置教程备份
 tags: [git]
@@ -42,19 +42,20 @@ vim ~/.vimrc
 :set hlsearch
 
 
-sudo apt install python3 python3-pip
+sudo apt install python3 python3-pip -y
 python -m pip install --upgrade pip
 pip config set global.index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 pip3 config list
 
 
 ## Docker
+# https://docs.docker.com/engine/install/ubuntu/
 # https://docs.docker.com/desktop/setup/install/linux/ubuntu/
 for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
 
 # Add Docker's official GPG key:
 sudo apt-get update
-sudo apt-get install ca-certificates curl
+sudo apt-get install ca-certificates curl -y
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -66,7 +67,7 @@ $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
 sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
 
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
 
 sudo usermod -aG docker ${USER}
 docker version
@@ -462,9 +463,8 @@ echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
 echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
 sudo sysctl -p /etc/sysctl.d/99-tailscale.conf
 
-sudo tailscale up --advertise-exit-node
-sudo tailscale up --advertise-routes=192.168.199.0/24 --advertise-exit-node --accept-routes
-sudo tailscale set --advertise-exit-node
+sudo tailscale up --accept-routes --advertise-routes=192.168.1.0/24 --advertise-exit-node
+# sudo tailscale up --accept-dns=true --accept-routes=true --login-server=https://yourheadscale.com --advertise-routes=192.168.1.0/24 --advertise-exit-node
 
 ![Tailscale 管理后台](https://login.tailscale.com/admin/machines) ​Edit route settings​ -> ​​Use as exit node​​
 # ip route show default 
@@ -475,6 +475,46 @@ sudo tailscale up --advertise-exit-node=false
 sudo tailscale up --exit-node=<节点IP或主机名> --exit-node-allow-lan-access
 # 清除出口节点配置
 sudo tailscale up --exit-node=""
+
+
+## tailscale 多开
+sudo mkdir -p /var/lib/tailscale-mylab # 实例的专用目录
+sudo mkdir -p /run/tailscale-mylab     # socket目录
+# 开机自启
+sudo vim /etc/systemd/system/tailscaled-mylab.service
+[Unit]
+Description=Tailscale Lab Instance
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/tailscaled \
+    --statedir=/var/lib/tailscale-mylab \
+    --socket=/run/tailscale-mylab/tailscaled.sock \
+    --tun=tailscale-mylab \
+    --port=41642
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+# 启用服务
+sudo systemctl enable --now tailscaled-mylab.service
+# 临时启动（不使用 systemd）
+# sudo tailscaled \
+#   --statedir=/var/lib/tailscale-mylab \
+#   --socket=/run/tailscale-mylab/tailscaled.sock \
+#   --tun=tailscale-mylab \
+#   --port=41642 &
+
+# 绝对不能双接收路由 (--accept-routes=true) 否则内核路由表会被多个tailscale实例疯狂地互相覆盖，导致网络中断。DNS同理。
+sudo tailscale --socket=/run/tailscale-mylab/tailscaled.sock up \
+  --accept-dns=false \
+  --accept-routes=false \
+  --advertise-routes=192.168.1.0/24 \
+  --advertise-exit-node
+
+sudo tailscale --socket=/run/tailscale-mylab/tailscaled.sock status # 查看网络状态
 ```
 ```json
 // tailscale ACLs

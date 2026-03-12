@@ -1,5 +1,5 @@
 ---
-title: CUDA初识
+title: CUDA 初识
 published: 2025-11-11
 description: CUDA初识
 tags: [CUDA, 内存管理]
