@@ -790,18 +790,19 @@ vim ~/.claude-code-router/config-free.json
 https://www.bilibili.com/video/BV1wm4UzfEbr/
 
 ## ~/.codex/config.toml
-model = "gpt-5.1-codex-max" # gpt-4.1-mini 
-model_provider = "openai-chat-completions"
+model_provider = "imkk"
+model = "gpt-5.2-codex"  # gpt-5.4
+model_reasoning_effort = "high"
+plan_mode_reasoning_effort = "high"
 preferred_auth_method = "apikey"
-model_reasoning_effort = "medium"
 
-[model_providers.openai-chat-completions]
-name = "OpenAI using Chat Completions"
+[model_providers.imkk]
+name = "IMKK"
 base_url = "https://model.imkk.us/v1"
+wire_api = "responses"
 env_key = "IMKK_API_TOKEN" # set -Ux IMKK_API_TOKEN "sk-你的中转key"
-wire_api = "chat"
 query_params = {}
-stream_idle_timeout_ms = 600000
+stream_idle_timeout_ms = 100000
 
 # [model_providers.modelscope]
 # name = "modelscope"
@@ -810,12 +811,22 @@ stream_idle_timeout_ms = 600000
 
 [features]
 skills = true
+multi_agent = true
+prevent_idle_sleep = true
 
 [projects."/home/username/DragonOS"]
 trust_level = "trusted"
 
 [projects."/home/username/linux6.6"]
 trust_level = "untrusted"
+
+[mcp_servers.context7]
+args = ["-y", "@upstash/context7-mcp"]
+command = "npx"
+
+# UI skills
+# npm install -g uipro-cli
+# uipro init --ai codex
 ```
 
 
