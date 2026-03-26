@@ -273,6 +273,10 @@ create partition primary # 创建主分区（默认占用全部空间）
 format fs=ntfs quick   # 快速格式化为NTFS文件系统
 assign letter=E        # 手动分配驱动器号为E（可替换为F,G等）
 exit
+
+## 查看开机自启服务
+systemctl list-unit-files --type=service --state=enabled
+systemctl list-unit-files --type=service | grep enabled
 ```
 
 
@@ -827,6 +831,10 @@ command = "npx"
 # UI skills
 # npm install -g uipro-cli
 # uipro init --ai codex
+
+# spec-kit (https://github.com/github/spec-kit)
+# uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git
+# specify init <NAME> # constitution specify clarify plan tasks analyze implement 
 ```
 
 
@@ -1083,8 +1091,8 @@ persist-key
 persist-tun
 
 # 日志记录
+#journalctl -u openvpn-server@server.service
 status /var/log/openvpn/openvpn-status.log
-log /var/log/openvpn/openvpn.log
 verb 3
 
 # 额外安全措施
@@ -1119,6 +1127,8 @@ iroute 192.168.1.0 255.255.255.0
 sudo systemctl -f enable openvpn-server@server.service
 sudo systemctl start openvpn-server@server.service
 
+
+# 注意这里的网卡名称（如wlp3s0、eno1等）需要根据实际情况替换
 sudo iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o wlp3s0 -j MASQUERADE
 sudo iptables -A FORWARD -i wlp3s0 -o tun0 -m state --state RELATED,ESTABLISHED -j ACCEPT
 sudo iptables -A FORWARD -i tun0 -o wlp3s0 -j ACCEPT
