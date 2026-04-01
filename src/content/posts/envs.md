@@ -681,6 +681,17 @@ function gptcc
         claude $argv
 end
 
+## /plugin
+# "enabledPlugins": {
+#   "pr-review-toolkit@claude-plugins-official": true,
+#   "context7@claude-plugins-official": true,
+#   "skill-creator@claude-plugins-official": true,
+#   "rust-analyzer-lsp@claude-plugins-official": true,
+#   "gopls-lsp@claude-plugins-official": true,
+#   "frontend-design@claude-plugins-official": true
+# }
+
+## ccr(claude-code-router)配置切换
 function ccrc
     cp ~/.claude-code-router/config-base.json ~/.claude-code-router/config.json
     and ccr code
@@ -825,14 +836,17 @@ trust_level = "trusted"
 trust_level = "untrusted"
 
 [mcp_servers.context7]
-args = ["-y", "@upstash/context7-mcp"]
 command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
 
-# UI skills
+[mcp_servers.chrome-mcp]
+command = "npx"
+args = ["-y", "mcp-remote", "http://127.0.0.1:12306/mcp"]
+
+## UI skills
 # npm install -g uipro-cli
 # uipro init --ai codex
-
-# spec-kit (https://github.com/github/spec-kit)
+## spec-kit (https://github.com/github/spec-kit)
 # uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git
 # specify init <NAME> # constitution specify clarify plan tasks analyze implement 
 ```
@@ -866,6 +880,23 @@ command = "npx"
       ],
       "disabled": false,
       "autoApprove": []
+    },
+    "chrome-mcp-stdio": { # npm install -g mcp-chrome-bridge
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "node", # https://github.com/hangwin/mcp-chrome/releases
+        "D:/nodejs/node_global/node_modules/mcp-chrome-bridge/dist/mcp/mcp-server-stdio.js"
+      ]
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest", # https://github.com/ChromeDevTools/chrome-devtools-mcp
+        "--autoConnect"
+      ]
     },
     "excel": {
       "command": "cmd",
