@@ -7,7 +7,7 @@ category: net
 draft: false
 ---
 
-[参考文献-小林coding](https://xiaolincoding.com/network/2_http/http_interview.html)
+[参考文献-小林coding-HTTP](https://xiaolincoding.com/network/2_http/http_interview.html)
 
 # HTTP：从基础到进阶的深度解析与实践指南
 ## 一、HTTP核心概念再梳理
