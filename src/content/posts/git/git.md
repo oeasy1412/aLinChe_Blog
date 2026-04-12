@@ -113,6 +113,34 @@ git cherry-pick [start-hash]^..[end-hash]
 git cherry-pick [hash1] [hash2] [hash3]
 ```
 
+## 工作树管理 (git worktree)
+
+`git worktree` 允许你在**同一个仓库中同时检出多个分支到不同目录**，所有工作区共享同一个 `.git` 目录（对象数据库），节省空间。
+
+与 `git stash` 对比：
+- `git stash`：适合**短时间**的简单环境切换
+- `git worktree`：适合**长时间并行任务**、对比代码、或在不同分支运行耗时测试/编（特别是如今 agent 的 ai-coding 场景）
+
+```sh
+# 创建新的工作树（基于已有分支）
+git worktree add ../project-hotfix hotfix
+# 创建新的工作树（基于远程分支）
+git worktree add ../new-feature origin/feature-branch
+
+# 查看所有工作树
+git worktree list
+
+# 移除工作树（建议通过命令删除，而不是手动删文件夹）
+git worktree remove ../project-hotfix
+git worktree remove -f ../project-hotfix  # 有未提交改动时强制删除
+
+# 清理无效引用（手动删除文件夹后留下的残余记录）
+git worktree prune
+```
+
+> 1. **不能在两个工作树中检出同一个分支**，Git 会报错（防止 HEAD 指针混乱）
+> 2. 建议将 worktree 创建在**主项目目录外**（如 `../`），避免全局搜索命中两份代码
+
 ## 远程仓库管理
 ```sh
 git remote -v
@@ -210,10 +238,12 @@ git filter-repo --file-info-callback '
    2. 添加错误提示信息（UI/errors.py）
 
 ​​要求​​：
-1. 保存你现在开发到一半的文件
+1. 保存你现在开发到一半的文件（`git stash` 或 `git worktree`）
 2. 为热修复创建独立分支
 3. 提交修复到main分支
 4. 将修复同步到原来的开发分支
+
+> 💡 提示：尝试分别用 `git stash` 和 `git worktree add` 两种方式完成，体会各自的适用场景
 
 ## Task 4：团队协作
 要求：

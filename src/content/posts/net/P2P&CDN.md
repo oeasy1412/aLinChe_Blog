@@ -1,5 +1,5 @@
 ---
-title: P2P
+title: P2P&CDN
 published: 2026-03-26
 description: P2P技术详解
 tags: [net]
