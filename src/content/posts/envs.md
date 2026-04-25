@@ -798,6 +798,16 @@ vim ~/.claude-code-router/config-free.json
   }
 }
 ```
+```sh
+# Windows
+npm install -g @anthropic-ai/claude-code
+
+# cc.bat
+@echo off
+set ANTHROPIC_BASE_URL=
+set ANTHROPIC_AUTH_TOKEN=
+claude --allow-dangerously-skip-permissions %*
+```
 
 
 ## Codex
@@ -806,10 +816,17 @@ https://www.bilibili.com/video/BV1wm4UzfEbr/
 
 ## ~/.codex/config.toml
 model_provider = "imkk"
-model = "gpt-5.2-codex"  # gpt-5.4
+model = "gpt-5.3-codex"  # gpt-5.4
+review_model = "gpt-5.3-codex"
 model_reasoning_effort = "high"
 plan_mode_reasoning_effort = "high"
 preferred_auth_method = "apikey"
+network_access = "enabled"
+approvals_reviewer = "user"
+windows_wsl_setup_acknowledged = true
+disable_response_storage = true
+# model_context_window = 1000000
+# model_auto_compact_token_limit = 900000
 
 [model_providers.imkk]
 name = "IMKK"
@@ -848,13 +865,50 @@ args = ["-y", "mcp-remote", "http://127.0.0.1:12306/mcp"]
 # uipro init --ai codex
 ## spec-kit (https://github.com/github/spec-kit)
 # uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git
-# specify init <NAME> # constitution specify clarify plan tasks analyze implement 
+# specify init <NAME> 
+# / constitution specify clarify plan tasks analyze implement 
 ```
+
+## OpenCode
+```sh
+curl -fsSL https://opencode.ai/install | bash
+# npm install -g opencode-ai
+## ~/.config/opencode/config.json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "litellm/kimi-k2.6-code-preview",
+  "provider": {
+    "litellm": {
+      "options": {
+        "baseURL": "",
+        "apiKey": "sk-"
+      },
+      "models": {
+        "kimi-k2.6-code-preview": {
+          "name": "Kimi K2.6",
+          "limit": {
+            "context": 262144,
+            "output": 98304
+          },
+          "modalities": {
+            "input": ["text", "image"],
+            "output": ["text"]
+          }
+        }
+      }
+    }
+  }
+}
+## omo: https://github.com/code-yeongyu/oh-my-openagent
+Install and configure oh-my-opencode by following the instructions here:
+https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/refs/heads/dev/docs/guide/installation.md
+```
+
 
 
 ## Kilo Code with VSCode in Windows
 ```sh
-# Kilo Code is fast!
+# Kilo Code
 ```
 
 
