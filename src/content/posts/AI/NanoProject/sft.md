@@ -156,7 +156,7 @@ export GRADIO_SHARE=1 && export GRADIO_SERVER_NAME=0.0.0.0
 export RECORD_VRAM=1 # 记录显存占用日志
 llamafactory-cli webui # 默认监听 7860 端口
 ```
-![llamafactory-webui](llamafactory.png)
+![llamafactory-webui](images/llamafactory.png)
 
 ## 自定义数据集下载与处理
 ```python
@@ -199,7 +199,7 @@ Total optimization steps = 228
 ```
 
 ## 查看 nvidia-smi 显存占用
-![nvidia-smi](nvidia-smi.png)
+![nvidia-smi](images/nvidia-smi.png)
 
 - 前面的只是理论最小显存估算，下面是实际训练过程中显存占用的日志输出：
 ```sh
@@ -217,4 +217,4 @@ PyTorch CUDA Allocator 缓存池 和 内存碎片问题
 enable_thinking=true 时序列长度增加
 DataLoader / CUDA Context / cuDDN
 ```
-![training-loss](training-loss.png)
+![training-loss](images/training-loss.png)

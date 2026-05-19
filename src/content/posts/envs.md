@@ -103,6 +103,8 @@ mv ~/.profile ~/.profile.backup
 
 home-manager switch
 
+nix store gc
+
 
 ## else
 # disk
@@ -668,6 +670,44 @@ sudo tailscale --socket=/run/tailscale-mylab/tailscaled.sock status # 查看网�
 ```
 
 
+## npm && pnpm
+```sh
+## Windows https://nodejs.org/zh-cn
+# 安装 nodejs 后，打开命令行工具，输入以下命令验证安装是否成功：
+node -v && npm -v 
+# 全局包的安装位置
+npm root -g
+# 全局包的安装位置前缀路径
+npm config get prefix
+# npm 缓存目录
+npm config get cache
+
+# 修改全局包安装位置和缓存目录（以 D 盘为例）
+npm config set prefix "D:\nodejs\node_global"
+npm config set cache "D:\nodejs\node_cache"
+
+# 查看当前 npm 使用的 registry 镜像源
+npm config get registry # https://registry.npmmirror.com 或 https://mirrors.tuna.tsinghua.edu.cn/npm/
+
+
+# 安装 pnpm
+npm install -g pnpm
+# pnpm 的 store 目录
+pnpm store path
+pnpm config get global-dir
+pnpm config set store-dir "D:\pnpm\store"
+pnpm config set global-dir "D:\pnpm\global"
+pnpm config set cache-dir "D:\pnpm\cache"
+pnpm config set state-dir "D:\pnpm\state"
+# 查看当前 pnpm 使用的 registry 镜像源
+pnpm config get registry
+
+# 清理 npm 和 pnpm 未引用的包
+npm cache verify # npm cache clean --force
+pnpm store prune
+```
+
+
 ## Claude Code
 ```sh
 node -v && npm -v # 如果考虑用fnm: curl -fsSL https://fnm.vercel.app/install | bash
@@ -866,6 +906,7 @@ args = ["-y", "mcp-remote", "http://127.0.0.1:12306/mcp"]
 ## spec-kit (https://github.com/github/spec-kit)
 # uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git
 # specify init <NAME> 
+# 使用步骤：（从 /constitution -> /implement ）
 # / constitution specify clarify plan tasks analyze implement 
 ```
 
@@ -899,9 +940,61 @@ curl -fsSL https://opencode.ai/install | bash
     }
   }
 }
+
+## ~/.config/opencode/opencode.json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "oh-my-openagent@latest",
+    "superpowers@git+https://github.com/obra/superpowers.git"
+  ]
+}
+
 ## omo: https://github.com/code-yeongyu/oh-my-openagent
 Install and configure oh-my-opencode by following the instructions here:
 https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/refs/heads/dev/docs/guide/installation.md
+## ~/.config/opencode/oh-my-openagent.json
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "sisyphus-junior": { # 主调度器
+      "model": "zhipuai-coding-plan/glm-5.1",
+      "fallback_models": [
+        "litellm/kimi-k2.6-code-preview",
+        "my-gpt/gpt-5.3-codex"
+      ]
+    },
+    "prometheus": {}, # Planer
+    "atlas": {},      # 执行 Plan
+    "oracle": {},     # deep thinker (subagent)
+    "hephaestus": {}, # deep worker
+    "momus": {},      # 无情审查员 (subagent)
+    "metis": {},      # 差距分析器 (subagent)
+    "librarian": {},  # 多仓库分析师 (subagent)
+    "explore": {},    # 快速代码库探索者 (subagent)
+    "multimodal-looker": {} # 多模态 (subagent)
+  },
+  "categories": { # 内置任务类别
+    "visual-engineering": {} # 前端
+    "ultrabrain": {} # 深度逻辑推理或关键决策
+    "deep": {}       # 深度
+    "artistry": {}   # 艺术性任务或创意
+    "quick": {}      # 快速简单问题
+    "unspecified-low": {}
+    "unspecified-high": {}
+    "writing": {}    # 文档 writer
+  }
+}
+
+## superpowers: 
+/brainstormin
+/writing-plans 
+/test-driven-development 
+/execute-plans
+
+
+## webui serve
+opencode serve --hostname 0.0.0.0 --port 4096 # --mdns --mdns-domain myopencode
 ```
 
 

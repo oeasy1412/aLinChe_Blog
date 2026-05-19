@@ -2,7 +2,7 @@
 title: Barrier
 published: 2025-04-16
 description: Memory Barrier
-tags: [OS, 并发, 内存管理, 编译原理, cpp]
+tags: [OS, CPU, 并发, 内存管理, 编译原理, cpp]
 category: 并发
 draft: false
 ---
