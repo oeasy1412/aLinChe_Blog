@@ -27,11 +27,12 @@ echo $SHELL
 sudo timedatectl set-timezone Asia/Shanghai
 date
 
-sudo apt install -y vim git openssh-server htop
+sudo apt install -y vim git openssh-server htop tmux bat ripgrep fd-find fzf jp curl wget
 git config --global user.name "aLinChe"
 git config --global user.email "1129332011@qq.com"
 git config --global core.editor vim
 git config --global color.ui true
+mkdir -p ~/.local/bin && ln -s /usr/bin/batcat ~/.local/bin/bat && ln -s /usr/bin/fdfind ~/.local/bin/fd
 
 vim ~/.vimrc
 :set mouse=a
@@ -40,6 +41,12 @@ vim ~/.vimrc
 :set sw=4
 :set sts=4
 :set hlsearch
+
+vim ~/.tmux.conf && tmux source-file ~/.tmux.conf
+set -g mouse on
+set -g prefix C-a
+bind C-a send-prefix
+bind r source-file ~/.tmux.conf \; display "Config Reloaded!"
 
 
 sudo apt install python3 python3-pip -y
@@ -87,14 +94,12 @@ vim ~/.config/home-manager/home.nix
 #     settings.experimental-features = [ "nix-command" "flakes" ];
 #     settings.access-tokens = "github.com=<your-github-access-token>";
 #   };
-
 #   programs = {
 #     direnv = {
 #       enable = true;
 #       enableBashIntegration = true;
 #       nix-direnv.enable = true;
 #     };
-    
 #     fish.enable = true;
 #     # bash.enable = true; # 使用 nix bash 管理
 #   };
@@ -279,6 +284,9 @@ exit
 ## 查看开机自启服务
 systemctl list-unit-files --type=service --state=enabled
 systemctl list-unit-files --type=service | grep enabled
+
+# CMD 安装 clink
+winget install clink
 ```
 
 
@@ -995,6 +1003,71 @@ https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/refs/heads/dev/do
 
 ## webui serve
 opencode serve --hostname 0.0.0.0 --port 4096 # --mdns --mdns-domain myopencode
+```
+
+
+## zellij
+```sh
+## scoop (可选，一个Windows工具链)
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+
+scoop bucket rm main
+scoop bucket add main https://mirror.nju.edu.cn/git/scoop-main.git
+scoop bucket add extras https://mirror.nju.edu.cn/git/scoop-extras.git
+
+## zellij 安装
+# https://github.com/zellij-org/zellij
+# https://zellij.dev/                     # 二进制安装(Windows推荐)
+# cargo install --locked zellij           # cargo 安装
+# sudo snap install zellij --classic      # linux 安装
+winget install -e --id arndawg.zellij-windows
+
+## （可选）lazygit 安装
+# https://github.com/jesseduffield/lazygit
+sudo apt install lazygit                  # linux 安装
+scoop install lazygit
+
+## yazi 安装
+# https://github.com/sxyazi/yazi
+# 文档 https://yazi-rs.github.io/docs/quick-start/#shell-wrapper # 好用！
+# cargo install --locked yazi-fm yazi-cli # cargo 安装
+# sudo snap install yazi --classic        # linux 安装
+scoop install file nerd-fonts ffmpeg 7zip jq poppler fd ripgrep fzf zoxide resvg imagemagick # 工具
+scoop install yazi   # winget install sxyazi.yazi
+
+## zoxide 安装
+# https://github.com/ajeetdsouza/zoxide
+# cargo install --locked zoxide           # cargo 安装
+scoop install zoxide # winget install ajeetdsouza.zoxide
+# 配置 shell 集成
+# -- PowerShell
+# notepad $PROFILE # New-Item -Path $PROFILE -Type File -Force
+# Invoke-Expression (& { (zoxide init powershell | Out-String) })
+
+## Linux 特化命令
+sudo snap install zellij yazi --classic
+# https://github.com/junegunn/fzf # fzf 更新
+# cargo install --locked zoxide
+## Windows 特化脚本
+# - y.cmd
+# @echo off
+# setlocal enabledelayedexpansion
+# chcp 65001 >nul
+# set "TMPFILE=%TEMP%\yazi-cwd-%RANDOM%.txt"
+# yazi.exe %* --cwd-file="%TMPFILE%"
+# if not exist "%TMPFILE%" exit /b 1
+# set "TARGET="
+# for /f "usebackq delims=" %%i in ("%TMPFILE%") do set "TARGET=%%i"
+# del "%TMPFILE%" 2>nul
+# if defined TARGET (
+#     if exist "%TARGET%\" (
+#         echo cd /d "%TARGET%"
+#         exit /b 0
+#     )
+# )
+# exit /b 1
+
 ```
 
 
