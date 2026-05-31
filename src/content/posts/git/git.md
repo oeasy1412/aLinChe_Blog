@@ -248,3 +248,9 @@ git filter-repo --file-info-callback '
 ## Task 4：团队协作
 要求：
 1. 学会使用`合适的工具`(比如 VSCode 图形化界面、相关的Github插件)：解决冲突，view PR，comment等等
+
+## Task 5：复杂合并冲突处理
+```sh
+# 查看某次merge合并的人为`冲突处理`的diff
+git show --remerge-diff [commit-hash]
+```

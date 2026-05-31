@@ -2,7 +2,7 @@
 title: sft监督微调
 published: 2026-05-09
 description: Qwen3.5-0.8B-Base + LLaMA-Factory sft监督微调 显存分析与实战
-tags: [LLM, NLP]
+tags: [LLM, NLP, 内存管理]
 category: LLM
 draft: false
 ---
