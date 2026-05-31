@@ -2,7 +2,7 @@
 title: 分布式训练
 published: 2026-04-24
 description: 系统梳理分布式训练的核心知识：集合通信原语、DP/TP/PP三大并行策略、显存管理等技术。
-tags: [分布式训练, LLM, GPU, 内存管理]
+tags: [分布式训练, LLM, GPU, 分布式, 内存管理]
 category: AI Infra
 draft: false
 ---
