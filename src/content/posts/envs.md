@@ -10,6 +10,10 @@ draft: false
 # 系统级配置
 ## Ubuntu
 ```sh
+## ISO
+# https://releases.ubuntu.com/
+# https://mirrors.tuna.tsinghua.edu.cn/ubuntu-releases/
+
 ## Basic
 sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
 sudo nano /etc/apt/sources.list
@@ -132,10 +136,19 @@ sudo vim /etc/netplan/50-cloud-init.yaml
 # systemctl
 systemctl --user list-unit-files --type=service --state=enabled
 
+
 ## Linux Kernal
+make ARCH=x86_64 defconfig
+make savedefconfig
+cp defconfig .base-defconfig
+diff -u .base-defconfig defconfig
+
 make menuconfig
 grep "=m" .config
 grep "=y" .config
+
+make savedefconfig
+diff -u .base-defconfig defconfig
 
 bear -- make -n
 make ARCH=x86_64 compile_commands.json -j$(nproc) # x86_64
@@ -147,10 +160,25 @@ make -j$(nproc) bzImage
 cp arch/x86/boot/bzImage vmlinuz-x86_64
 # if ARM aarch64: make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc) # arch/arm64/boot/Image
 
-# make menuconfig
-Kernel hacking  --->
+# make menuconfig (linux v6.6)
+General setup  --->
+    Control Group support  --->  
+      [*]   Memory controller
+    Namespaces support  --->
+      [*]   User namespace
+Networking support  --->
+    Networking options  --->
+        <*>   IP: tunneling
+        <*>   IP: Foo (IP protocols) over UDP
+        [*]   MPTCP: Multipath TCP
+        <*> 802.1d Ethernet Bridging
+        [*]   IGMP/MLD snooping
+        [*]   VLAN filtering
+        <*> 802.1Q/802.1ad VLAN Support
+Kernel hacking  ---> (可选项，开启调试功能后会增加编译时间和内核体积)
     Compile-time checks and compiler options  --->
-        [*] Compile the kernel with debug info
+        Debug information (Disable debug information)  --->
+          # (X) Rely on the toolchain's implicit default DWARF version 
         [*]   Provide GDB scripts for kernel debugging
 Device Drivers  --->
     Network device support  --->
@@ -160,22 +188,18 @@ Device Drivers  --->
         [*]   Ethernet driver support  --->
         -*-   PHY Device support and infrastructu  --->
         -*-   MDIO bus device drivers  --->
-        # ​​USB网卡：
+        # ​​USB有线网卡：
         <*>   USB Network Adapters  --->
         ​# ​无线网卡​​：
         [*]   Wireless LAN  --->
+          <M>     Realtek 802.11n USB wireless chips support
         # 虚拟机网卡​​：
         <*>   VMware VMXNET3 ethernet driver
         <M>   Simulated networking device
         <M>   Failover driver
     Virtio drivers --->
-Networking support  --->
-    Networking options  --->
-        [*] TCP/IP networking
-        [*]   IP: advanced router
-        [*]     IP: policy routing
-        <*>   The IPv6 protocol  --->
-        <*> 802.1d Ethernet Bridging
+      <*>   PCI driver for virtio devices 
+      <*>   Virtio input driver
 ```
 
 
@@ -285,7 +309,28 @@ exit
 systemctl list-unit-files --type=service --state=enabled
 systemctl list-unit-files --type=service | grep enabled
 
-# CMD 安装 clink
+## clash for WSL
+PS C:> Get-NetAdapter | Where-Object { $_.Name -like "vEthernet*" -or $_.DisplayName -like '*WSL*' } | Select-Object -ExpandProperty Name
+PS C:> Remove-NetFirewallRule -DisplayName "WSL_Clash_Allow"
+PS C:> New-NetFirewallRule -DisplayName "WSL_Clash_Allow" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 7897 -RemoteAddress 172.16.0.0/12 -InterfaceAlias "vEthernet (WSL)" -Profile Any
+PS C:> Get-NetFirewallRule | Where-Object { $_.DisplayName -like '*clash*' -or $_.DisplayName -like '*verge*' } | Format-Table DisplayName, Enabled, Direction, Action -AutoSize
+PS C:> Get-NetFirewallRule | Where-Object { ($_.DisplayName -like 'verge-mihomo') -and $_.Direction -eq 'Inbound' -and $_.Action -eq 'Block' } | Remove-NetFirewallRule
+PS C:> Get-NetFirewallRule | Where-Object { $_.DisplayName -like '*clash*' -or $_.DisplayName -like '*verge*' } | Format-Table DisplayName, Enabled, Direction, Action -AutoSize
+# 在 WSL 中配置环境变量以使用 Windows 上的 Clash 代理
+# set -g host_ip (ip route show | grep default | awk '{print $3}')
+# set -g proxy_port 7897
+# if nc -z -w 1 $host_ip $proxy_port > /dev/null 2>&1
+#     set -gx http_proxy  "http://$host_ip:$proxy_port"
+#     set -gx https_proxy "http://$host_ip:$proxy_port"
+#     set -gx all_proxy   "socks5://$host_ip:$proxy_port"
+#     #echo "Proxy set to $host_ip:$proxy_port"
+# else
+#     set -e http_proxy
+#     set -e https_proxy
+#     set -e all_proxy
+# end
+
+## CMD 安装 clink
 winget install clink
 ```
 
