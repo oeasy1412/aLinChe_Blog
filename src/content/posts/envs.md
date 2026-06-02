@@ -313,6 +313,7 @@ systemctl list-unit-files --type=service | grep enabled
 PS C:> Get-NetAdapter | Where-Object { $_.Name -like "vEthernet*" -or $_.DisplayName -like '*WSL*' } | Select-Object -ExpandProperty Name
 PS C:> Remove-NetFirewallRule -DisplayName "WSL_Clash_Allow"
 PS C:> New-NetFirewallRule -DisplayName "WSL_Clash_Allow" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 7897 -RemoteAddress 172.16.0.0/12 -InterfaceAlias "vEthernet (WSL)" -Profile Any
+# P.S. 如果你需要用网线共享Clash给别人 # PS C:> New-NetFirewallRule -DisplayName "Ethernet_Clash_Allow" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 7897 -RemoteAddress 192.168.137.0/24 -InterfaceAlias "以太网 2" -Profile Any
 PS C:> Get-NetFirewallRule | Where-Object { $_.DisplayName -like '*clash*' -or $_.DisplayName -like '*verge*' } | Format-Table DisplayName, Enabled, Direction, Action -AutoSize
 PS C:> Get-NetFirewallRule | Where-Object { ($_.DisplayName -like 'verge-mihomo') -and $_.Direction -eq 'Inbound' -and $_.Action -eq 'Block' } | Remove-NetFirewallRule
 PS C:> Get-NetFirewallRule | Where-Object { $_.DisplayName -like '*clash*' -or $_.DisplayName -like '*verge*' } | Format-Table DisplayName, Enabled, Direction, Action -AutoSize
@@ -332,6 +333,7 @@ PS C:> Get-NetFirewallRule | Where-Object { $_.DisplayName -like '*clash*' -or $
 
 ## CMD 安装 clink
 winget install clink
+clink set autosuggest.inline true
 ```
 
 
@@ -379,6 +381,7 @@ conda create -n ROCm python=3.11
 conda activate ROCm
 # pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/rocm6.3
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# pip show torch | grep -E 'Location|Version'
 pip install jupyter d2l
 conda install ipykernel
 python -m ipykernel install --user --name ROCm --display-name "ROCm"
