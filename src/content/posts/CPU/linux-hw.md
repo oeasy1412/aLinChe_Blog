@@ -211,7 +211,10 @@ lsusb -t
 /:  Bus 01.Port 1: Dev 1, Class=root_hub, Driver=xhci_hcd/9p, 480M
     |__ Port 8: Dev 2, If 0, Class=Vendor Specific Class, Driver=r8188eu, 480M
 ```
-但其实 Bus 04/03 是**同一个** USB 3.x 物理端口在逻辑上的双总线投影，对于我这个主板（MSI MS-7C96 “`微星A520M-A PRO`”） [msi官网链接](https://www.msi.cn/Motherboard/A520M-A-PRO/Specification) Bus 04/03 是主机背面的 4个 USB 3.2 type-A 接口（xhci_hcd/4p），Bus 02/01 是主机前面 3个 USB 3.2 type-A 接口（xhci_hcd/3p）、主机前面 4个 USB 2.0 type-A 接口 和 主机背面 2个 USB 2.0 type-A 接口（xhci_hcd/9-3p）。
+但其实 Bus 04/03 是**同一个** USB 3.x 物理端口在逻辑上的双总线投影。
+对于我这个主板（MSI MS-7C96 “`微星A520M-A PRO`”） [msi官网链接](https://www.msi.cn/Motherboard/A520M-A-PRO/Specification) 
+- Bus 04/03 是主机背面的 4个 USB 3.2 type-A 接口（xhci_hcd/4p）
+- Bus 02/01 是主机前面 支持 3个 USB 3.2 type-A 的插针（xhci_hcd/3p）、主机前面 支持 4个 USB 2.0 type-A 的插针 和 主机背面 2个 USB 2.0 type-A 接口（xhci_hcd/9-3p）。
 
 每个物理接口都被 `xhci_hcd` 驱动映射成了两个逻辑总线（USB 3.x 和 USB 2.0），因此在 `lsusb -t` 输出中会看到两组根集线器(root_hub)和对应的端口(Port)。
 
