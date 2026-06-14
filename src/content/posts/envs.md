@@ -14,6 +14,9 @@ draft: false
 # https://releases.ubuntu.com/
 # https://mirrors.tuna.tsinghua.edu.cn/ubuntu-releases/
 
+## BIOS
+# mokutil --sb-state # SecureBoot disabled
+
 ## Basic
 sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
 sudo nano /etc/apt/sources.list
@@ -1117,6 +1120,18 @@ sudo snap install zellij yazi --classic
 # )
 # exit /b 1
 
+## zellij 配置
+vim ~/.config/zellij/config.kdl
+## fish 配置
+# if status is-interactive
+#      if not set -q ZELLIJ; and not set -q SSH_TTY; and not set -q SSH_CLIENT
+#         if zellij ls 2>/dev/null | grep -q 'log'
+#             zellij a log
+#         else
+#             zellij --layout ronly
+#         end
+#     end
+# end
 ```
 
 
@@ -1318,6 +1333,9 @@ https://winlibs.com/
 
 ## OpenVPN
 ```sh
+### 新方案：https://github.com/angristan/openvpn-install
+
+### 旧方案：手动配置
 # sudo apt update && sudo apt upgrade -y
 sudo apt install openvpn easy-rsa -y
 mkdir ~/openvpn-ca
@@ -1523,4 +1541,78 @@ sudo cat /etc/openvpn/server/ta.key
 ## --- ddns-go --- （可选）
 docker run -d --name ddns-go --restart=always --net=host -v /opt/ddns-go:/root jeessy/ddns-go
 # 访问 http://docker对应主机IP:9876/
+```
+
+
+## Edge
+```sh
+## 浏览器插件
+Global Speed: 视频速度控制; iTab新标签页; SteamDB;
+沉浸式翻译; Cookie-Editor; Dark Reader
+
+## 回滚版本 (记得利用好Edge的同步功能，备份收藏夹和插件等数据)
+https://www.microsoft.com/zh-cn/edge/business/download?form=MA13FJ
+# 1. 禁用服务
+Set-Service -Name "edgeupdate" -StartupType Disabled
+Set-Service -Name "edgeupdatem" -StartupType Disabled
+# 2. 禁用计划任务
+schtasks /Change /TN "\MicrosoftEdgeUpdateTaskMachineCore" /Disable
+schtasks /Change /TN "\MicrosoftEdgeUpdateTaskMachineUA" /Disable
+# 3. 验证
+Get-Service edgeupdate, edgeupdatem | Select-Object Name, Status, StartType
+schtasks /Query /TN "\MicrosoftEdgeUpdateTaskMachineCore" | Select-String "就绪|已禁用|Disabled"
+schtasks /Query /TN "\MicrosoftEdgeUpdateTaskMachineUA" | Select-String "就绪|已禁用|Disabled"
+
+# 关闭所有 Edge 进程
+# 回滚版本
+msiexec /i "MicrosoftEdgeEnterpriseX64.msi" ALLOWDOWNGRADE=1
+# 验证版本
+(Get-Item "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe").VersionInfo.ProductVersion
+146.0.3856.152
+
+# P.S. 策略文件是微软官方提供的“封印”自动更新方式：
+# 将解压后策略包里 windows/admx 下的 msedgeupdate.admx 复制到 C:/Windows/PolicyDefinitions；
+# 将 windows/admx/zh-CN 里的 msedgeupdate.adml 复制到 C:/Windows/PolicyDefinitions/zh-CN。
+# `Win + R` 运行 gpedit.msc
+# 前往：计算机配置 -> 管理模板 -> Microsoft Edge 更新 -> 应用程序(Applications) -> Microsoft Edge。
+# 找到 更新策略替代(Update policy override default)，选“已启用”，下方下拉框选 更新已禁用(Updates disabled)，然后点击确认。
+
+## regedit
+# 计算机\HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge
+https://learn.microsoft.com/zh-cn/DeployEdge/microsoft-edge-policies#edgeworkspacesenabled
+```
+
+
+## else
+```sh
+## 异地组网
+Tailscale
+## 软路由
+OpenWrt
+## NAS
+OpenList
+## 远程桌面
+Sunshine & Moonlight
+## 几个电脑之间文件同步
+Syncthing
+## 软件卸载
+Geek Uninstaller
+## PDF
+PDFgear
+## 文件搜索
+Everything / fzf
+## 笔记
+Obsidian / VSCode
+## 性能监控
+AIDA64
+## 电池健康
+BatteryInfoView
+## 多声卡
+Voicemeeter Banana
+## 梯子
+Clash Verge
+## BT
+qBittorrent
+## 浏览器
+Edge
 ```

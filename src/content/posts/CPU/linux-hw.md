@@ -68,18 +68,18 @@ cat /sys/class/dmi/id/board_name
 free -h
 
 sudo dmidecode -t memory
-# Handle 0x0010, DMI type 16, 23 bytes
+# Handle 0x0011, DMI type 16, 23 bytes
 # Physical Memory Array
 #         Location: System Board Or Motherboard
 #         Use: System Memory
 #         Error Correction Type: None
 #         Maximum Capacity: 128 GB
-#         Error Information Handle: 0x000F
+#         Error Information Handle: 0x0010
 #         Number Of Devices: 2
-# Handle 0x0018, DMI type 17, 40 bytes
+# Handle 0x0019, DMI type 17, 40 bytes
 # Memory Device
-#         Array Handle: 0x0010
-#         Error Information Handle: 0x0017
+#         Array Handle: 0x0011
+#         Error Information Handle: 0x0018
 #         Total Width: 64 bits
 #         Data Width: 64 bits
 #         Size: 8 GB
@@ -89,17 +89,93 @@ sudo dmidecode -t memory
 #         Bank Locator: P0 CHANNEL A
 #         Type: DDR4
 #         Type Detail: Synchronous Unbuffered (Unregistered)
-#         Speed: 2400 MT/s
+#         Speed: 3200 MT/s
 #         Manufacturer: Unknown
 #         Serial Number: D4083222
 #         Asset Tag: Not Specified
 #         Part Number: VGM4UX32C188G-STACRN
 #         Rank: 1
-#         Configured Memory Speed: 2400 MT/s
+#         Configured Memory Speed: 3200 MT/s  # 需要开启A-XMP
 #         Minimum Voltage: 1.2 V
 #         Maximum Voltage: 1.2 V
 #         Configured Voltage: 1.2 V
-# Handle 0x001B, DMI type 17, 40 bytes # 2 * 8GB 内存条
+# Handle 0x001C, DMI type 17, 40 bytes  # 2 * 8GB 内存条
+#         Bank Locator: P0 CHANNEL B    # 双通道
+
+sudo apt install i2c-tools
+sudo decode-dimms # 可能需要 sudo modprobe ee1004
+# Decoding EEPROM: /sys/bus/i2c/drivers/ee1004/0-0050
+# Guessing DIMM is in                              bank 1
+# Kernel driver used                               ee1004
+# ---=== SPD EEPROM Information ===---
+# EEPROM CRC of bytes 0-125                        OK (0xBD97)
+# # of bytes written to SDRAM EEPROM               384
+# Total number of bytes in EEPROM                  512
+# Fundamental Memory type                          DDR4 SDRAM
+# SPD Revision                                     1.1
+# Module Type                                      UDIMM
+# EEPROM CRC of bytes 128-253                      OK (0xB9C3)
+# ---=== Memory Characteristics ===---
+# Maximum module speed                             2400 MT/s (PC4-19200)
+# Size                                             8192 MB
+# Banks x Rows x Columns x Bits                    16 x 16 x 10 x 64
+# SDRAM Device Width                               8 bits
+# Ranks                                            1
+# Primary Bus Width                                64 bits
+# AA-RCD-RP-RAS (cycles)                           17-17-17-39
+# Supported CAS Latencies                          18T, 17T, 16T, 15T, 14T, 13T, 12T, 11T, 10T
+# ---=== Timings at Standard Speeds ===---
+# AA-RCD-RP-RAS (cycles) as DDR4-2400              17-17-17-39
+# AA-RCD-RP-RAS (cycles) as DDR4-2133              15-15-15-35
+# AA-RCD-RP-RAS (cycles) as DDR4-1866              13-13-13-30
+# AA-RCD-RP-RAS (cycles) as DDR4-1600              11-11-11-26
+# ---=== Timing Parameters ===---
+# Minimum Cycle Time (tCKmin)                      0.833 ns
+# Maximum Cycle Time (tCKmax)                      1.600 ns
+# Minimum CAS Latency Time (tAA)                   13.750 ns
+# Minimum RAS to CAS Delay (tRCD)                  13.750 ns
+# Minimum Row Precharge Delay (tRP)                13.750 ns
+# Minimum Active to Precharge Delay (tRAS)         32.000 ns
+# Minimum Active to Auto-Refresh Delay (tRC)       45.750 ns
+# Minimum Recovery Delay (tRFC1)                   350.000 ns
+# Minimum Recovery Delay (tRFC2)                   260.000 ns
+# Minimum Recovery Delay (tRFC4)                   160.000 ns
+# Minimum Four Activate Window Delay (tFAW)        21.000 ns
+# Minimum Row Active to Row Active Delay (tRRD_S)  3.300 ns
+# Minimum Row Active to Row Active Delay (tRRD_L)  4.900 ns
+# Minimum CAS to CAS Delay (tCCD_L)                5.000 ns
+# Minimum Write Recovery Time (tWR)                15.000 ns
+# Minimum Write to Read Time (tWTR_S)              2.500 ns
+# Minimum Write to Read Time (tWTR_L)              7.500 ns
+# ---=== Other Information ===---
+# Package Type                                     Monolithic
+# Maximum Activate Count (MAC)                     Unlimited
+# Post Package Repair                              One row per bank group
+# Soft PPR                                         Supported
+# Module Nominal Voltage                           1.2 V
+# Thermal Sensor                                   No
+# ---=== Physical Characteristics ===---
+# Module Height                                    32 mm
+# Module Thickness                                 2 mm front, 2 mm back
+# Module Reference Card                            A revision 2
+# ---=== Manufacturer Data ===---
+# Module Manufacturer                              Gloway International Co. Ltd # 光威
+# DRAM Manufacturer                                CXMT (former Innotron Memory Co Ltd) # 长鑫存储
+# Manufacturing Date                               2024-W32
+# Assembly Serial Number                           0xD4083222
+# Part Number                                      VGM4UX32C188G-STACRN
+
+# Decoding EEPROM: /sys/bus/i2c/drivers/ee1004/0-0051
+# Guessing DIMM is in                              bank 2
+# Kernel driver used                               ee1004
+# ---=== Manufacturer Data ===---
+# Module Manufacturer                              Gloway International Co. Ltd # 光威
+# DRAM Manufacturer                                Micron Technology # 美光
+# Manufacturing Date                               2024-W02
+# Assembly Serial Number                           0xD400033D
+# Part Number                                      TAC4U3200E18081C
+
+# Number of SDRAM DIMMs detected and decoded: 2
 ```
 
 ## 磁盘
@@ -209,7 +285,9 @@ lsusb -t
     |__ Port 3: Dev 2, If 1, Class=Human Interface Device, Driver=usbhid, 12M
 /:  Bus 02.Port 1: Dev 1, Class=root_hub, Driver=xhci_hcd/3p, 10000M
 /:  Bus 01.Port 1: Dev 1, Class=root_hub, Driver=xhci_hcd/9p, 480M
-    |__ Port 8: Dev 2, If 0, Class=Vendor Specific Class, Driver=r8188eu, 480M
+    |__ Port 5: Dev 3, If 0, Class=Wireless, Driver=btusb, 12M
+    |__ Port 5: Dev 3, If 1, Class=Wireless, Driver=btusb, 12M
+    |__ Port 8: Dev 4, If 0, Class=Vendor Specific Class, Driver=r8188eu, 480M
 ```
 但其实 Bus 04/03 是**同一个** USB 3.x 物理端口在逻辑上的双总线投影。
 对于我这个主板（MSI MS-7C96 “`微星A520M-A PRO`”） [msi官网链接](https://www.msi.cn/Motherboard/A520M-A-PRO/Specification) 
@@ -248,21 +326,57 @@ cat /proc/net/wireless
 
 ## 网卡
 ```sh
-lspci -v | grep -A 10 -E "Ethernet"
-# 22:00.0 Ethernet controller: Realtek Semiconductor Co., Ltd. RTL8111/8168/8411 PCI Express Gigabit Ethernet Controller (rev 15)
-#         Subsystem: Micro-Star International Co., Ltd. [MSI] RTL8111/8168/8411 PCI Express Gigabit Ethernet Controller
+sudo lspci -nnkv | grep -A 20 -E "Ethernet"
+# 22:00.0 Ethernet controller [0200]: Realtek Semiconductor Co., Ltd. RTL8111/8168/8411 PCI Express Gigabit Ethernet Controller [10ec:8168] (rev 15)
+#         Subsystem: Micro-Star International Co., Ltd. [MSI] RTL8111/8168/8411 PCI Express Gigabit Ethernet Controller [1462:7c96]
 #         Flags: bus master, fast devsel, latency 0, IRQ 35, IOMMU group 15
 #         I/O ports at f000 [size=256]
-#         Memory at fc504000 (64-bit, non-prefetchable) [size=4K]
-#         Memory at fc500000 (64-bit, non-prefetchable) [size=16K]
-#         Capabilities: <access denied>
+#         Memory at fc604000 (64-bit, non-prefetchable) [size=4K]
+#         Memory at fc600000 (64-bit, non-prefetchable) [size=16K]
+#         Capabilities: [40] Power Management version 3
+#         Capabilities: [50] MSI: Enable- Count=1/1 Maskable- 64bit+
+#         Capabilities: [70] Express Endpoint, MSI 01
+#         Capabilities: [b0] MSI-X: Enable+ Count=4 Masked-
+#         Capabilities: [100] Advanced Error Reporting
+#         Capabilities: [140] Virtual Channel
+#         Capabilities: [160] Device Serial Number 01-00-00-00-68-4c-e0-00
+#         Capabilities: [170] Latency Tolerance Reporting
+#         Capabilities: [178] L1 PM Substates
 #         Kernel driver in use: r8169
 #         Kernel modules: r8169
+
+sudo lspci -nnkv | grep -A 20 -E "Wi-Fi"
+# 23:00.0 Network controller [0280]: Intel Corporation Wi-Fi 6 AX210/AX211/AX411 160MHz [8086:2725] (rev 1a)
+#         Subsystem: Intel Corporation Wi-Fi 6 AX210 160MHz [8086:0024]
+#         Flags: bus master, fast devsel, latency 0, IRQ 33, IOMMU group 15
+#         Memory at fc500000 (64-bit, non-prefetchable) [size=16K]
+#         Capabilities: [c8] Power Management version 3
+#         Capabilities: [d0] MSI: Enable- Count=1/1 Maskable- 64bit+
+#         Capabilities: [40] Express Endpoint, MSI 00
+#         Capabilities: [80] MSI-X: Enable+ Count=16 Masked-
+#         Capabilities: [100] Advanced Error Reporting
+#         Capabilities: [14c] Latency Tolerance Reporting
+#         Capabilities: [154] L1 PM Substates
+#         Kernel driver in use: iwlwifi
+#         Kernel modules: iwlwifi
 ```
 
 ## PCI
 ```sh
 lspci
+```
+
+## BIOS
+```sh
+sudo dmidecode -s bios-version
+# 1.K0
+mokutil --sb-state
+# SecureBoot disabled
+
+## BIOS
+# Secure Boot: [Enabled]->[Disabled]
+# Restore after AC Power Loss: [Power Off]->[Power On]
+# A-XMP: [Disabled]->[Enabled]
 ```
 
 ## 其他
@@ -283,3 +397,18 @@ sensors
 # Tctl:         +32.1°C
 # Tccd1:        +32.5°C
 ```
+
+速览：
+| 配件 | 规格 | 价格(元) |
+| :--- | :--- | :--- |
+| 主板 | MSI A520M-A PRO | 350 |
+| CPU | AMD Ryzen 5 3500X + 塔散 | 300 + 50 |
+| 显卡 | GTX 1060 5G | 500 |
+| 内存 | 2*光威 DDR4 3200 8G (长鑫颗粒) | 200 |
+| 固态 | SSD 128G | 80 |
+| 电源 | 长城 额定300W | 100 |
+| 无线网卡 | AX210 芯片 | 100 |
+| 机箱 | Tt 启航者 F4 | 120 |
+| 机箱风扇 | 利民 TL-C12B V2 工包 (x2) | 20 * 2 |
+
+一手估计：1840

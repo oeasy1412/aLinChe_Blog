@@ -8,10 +8,15 @@ draft: false
 ---
 在 Linux 系统性能调优的世界里，**Perf** (`Performance Counters for Linux`) 基于 Linux 内核的 perf_events 子系统，能够利用 CPU 的硬件计数器(`PMU`)和内核的监测点(`Tracepoints`)，以极低的损耗分析系统和应用程序的性能表现。
 
+# perf
+
 ## 0. 知己知彼：查看支持的事件
 在使用 Perf 之前，首先需要知道当前硬件和内核支持哪些性能事件。
 ```sh
 # 列出所有支持的性能事件（Hardware, Software, Tracepoints 等）
+# sudo apt update && sudo apt install linux-tools-common linux-tools-generic linux-tools-$(uname -r)
+# echo "kernel.perf_event_paranoid=-1" | sudo tee -a /etc/sysctl.conf
+# sudo sysctl -p
 perf list
 ```
 
@@ -20,17 +25,17 @@ perf list
 ### 基础性能指标
 分析 CPU 周期、指令数以及各级缓存（L1, LLC）的负载与未命中情况：
 ```sh
-sudo perf stat -e cycles,instructions,L1-dcache-load-misses,L1-dcache-loads,LLC-load-misses,LLC-loads,cache-misses,cache-references ./a.out
+perf stat -e cycles,instructions,L1-dcache-load-misses,L1-dcache-loads,LLC-load-misses,LLC-loads,cache-misses,cache-references ./a.out
 ```
 ### 操作系统层面指标
 关注上下文切换（Context Switches）和缺页异常（Page Faults），这对排查系统调用开销过大或内存抖动非常有用：
 ```sh
-sudo perf stat -e cycles,instructions,cache-misses,cache-references,page-faults,context-switches ./a.out
+perf stat -e cycles,instructions,cache-misses,cache-references,page-faults,context-switches ./a.out
 ```
 ### 内核子系统追踪
 利用 Tracepoints 监控内存分配（kmem）和调度器切换（sched）：
 ```sh
-sudo perf stat -e kmem:mm_page_alloc,sched:sched_switch ./a.out
+perf stat -e kmem:mm_page_alloc,sched:sched_switch ./a.out
 ```
 ### 精准测量技巧：
 为了获取更准确的数据，我们通常使用以下参数：
@@ -46,24 +51,24 @@ sudo perf stat -e kmem:mm_page_alloc,sched:sched_switch ./a.out
 *   `-F 99`: 长期采样设置采样频率为 99Hz（避免与 100Hz 的时钟中断重叠，防止锁步效应），短期采样可以不手动设置采样频率。
 *   `-c 10000`: 按事件周期采样（每发生10000次指定事件才采样一次）
 ```sh
-sudo perf record -g ./a.out
+perf record -g ./a.out
 ```
 ### 过滤干扰 -e
 有时候我们只关心某个特定问题：
 ```sh
 # 只记录用户态周期 (:u)
-sudo perf record -e cycles:u ./a.out
+perf record -e cycles:u ./a.out
 # 只记录内核态周期 (:k)
-sudo perf record -e cycles:k ./a.out
+perf record -e cycles:k ./a.out
 # 只记录LLC-load-misses
-sudo perf record -g -e LLC-load-misses ./a.out
+perf record -g -e LLC-load-misses ./a.out
 # 显示源码行号
-sudo perf report -g -F+period,srcline
+perf report -g -F+period,srcline
 ```
 ### report 生成报告
 ```sh
 # 生成文本格式报告并保存
-sudo perf report -n --stdio > report.md
+perf report -n --stdio > report.md
 ```
 
 ## 3. 代码级分析：Perf Annotate
@@ -72,7 +77,7 @@ sudo perf report -n --stdio > report.md
 默认情况下 `perf annotate` 会读取当前目录下的 `perf.data`。但在实际工作中，我们经常需要分析历史数据，或者在服务器录制数据后下载到本地分析。
 ```sh
 # 读取指定的性能数据文件进行汇编级分析
-sudo perf annotate -i perf.data
+perf annotate -i perf.data
 ```
 ### TUI 交互模式
 当你在终端运行上述命令时，会进入一个基于 TUI (Text User Interface) 的交互界面。这是专家最常用的模式。
@@ -91,19 +96,19 @@ sudo perf annotate -i perf.data
 在一个庞大的项目中，直接运行 `annotate` 可能会列出所有函数，导致查找困难。我们可以配合过滤器使用：
 ```sh
 # 1. 指定符号（函数名）
-sudo perf annotate -i perf.data -s function_name
+perf annotate -i perf.data -s function_name
 # 2. 指定动态库/内核模块 (DSO)
-sudo perf annotate -i perf.data -d libc.so.6
+perf annotate -i perf.data -d libc.so.6
 # 3. 指定内核
-sudo perf annotate -i perf.data --vmlinux /boot/vmlinux-$(uname -r)
+perf annotate -i perf.data --vmlinux /boot/vmlinux-$(uname -r)
 ```
 ### 导出为文本报告
 如果你需要在 CI/CD 流水线中展示，或者习惯用文本编辑器查看，可以使用 `--stdio` 模式：
 ```sh
 # 将汇编级分析结果输出到终端或文件
-sudo perf annotate -i perf.data --stdio > annotation.log
+perf annotate -i perf.data --stdio > annotation.log
 # 配合 -n 显示样本数量，而不只是百分比
-sudo perf annotate -i perf.data --stdio -n
+perf annotate -i perf.data --stdio -n
 ```
 ### 技巧分享：
 1.  **查找“最长”的条柱**：在 TUI 界面中，百分比最高的行通常是红色的。
@@ -119,7 +124,7 @@ sudo perf annotate -i perf.data --stdio -n
 对于多线程和高性能计算程序，内存访问模式和锁竞争往往是瓶颈所在。
 ### 内存访问分析
 ```sh
-sudo perf mem record ./a.out
+perf mem record ./a.out
 # 随后使用 perf report 查看内存访问详情
 ```
 ### 伪共享检测 (False Sharing)
@@ -127,22 +132,22 @@ sudo perf mem record ./a.out
 ```sh
 # -a: 系统范围录制
 # sleep 10: 采集 10 秒
-sudo perf c2c record -a -- sleep 10
-sudo perf c2c report
+perf c2c record -a -- sleep 10
+perf c2c report
 ```
 ### 调度延迟分析
 分析进程等待 CPU 的时间以及 CPU 迁移情况：
 ```sh
-sudo perf sched latency
-sudo perf sched migrate
+perf sched latency
+perf sched migrate
 ```
 ### 实时监控：Perf Top
 类似于 Linux 的 `top` 命令，但 `perf top` 显示的是消耗 CPU 周期最多的函数，适合实时排查生产环境飙高的问题。
 ```sh
 # 实时显示消耗 cycles 最多的函数，按进程名(comm)和动态库(dso)分类
-sudo perf top -e cycles -s comm,dso
+perf top -e cycles -s comm,dso
 # 仅监控特定进程组（如 gcc, clang）的 cache-misses
-sudo perf top -e cache-misses --comms gcc,clang
+perf top -e cache-misses --comms gcc,clang
 ```
 
 ## 5. 可视化：火焰图 (Flame Graph)
@@ -158,11 +163,11 @@ git clone https://github.com/brendangregg/FlameGraph.git --depth 1
 4.  **绘制**：生成 SVG 图片。
 ```sh
 # 1. 录制
-sudo perf record -F 99 -g --call-graph dwarf ./a.out
+perf record -F 99 -g --call-graph dwarf ./a.out
 # 2-4. 一条龙生成 
 perf script | ./FlameGraph/stackcollapse-perf.pl | ./FlameGraph/flamegraph.pl > flame.svg
 # 或者分步执行
-# sudo perf script > out.perf
+# perf script > out.perf
 # ./FlameGraph/stackcollapse-perf.pl out.perf > out.folded
 # ./FlameGraph/flamegraph.pl out.folded > flame.svg
 ```
@@ -192,9 +197,9 @@ gprof ./a.out | gprof2dot -s -n 1.0 --skew=1 --depth=4 | dot -Tsvg -Granksep=1 -
 ## 一次 perf 示例：
 ```sh
 g++ -g -std=c++20 -mavx2 -mfma Gaussian_Blur.cpp && ./a.out 
-sudo perf stat -e cycles,instructions,L1-dcache-load-misses,L1-dcache-loads,LLC-load-misses,LLC-loads,cache-references,cache-misses ./a.out
+perf stat -e cycles,instructions,L1-dcache-load-misses,L1-dcache-loads,LLC-load-misses,LLC-loads,cache-references,cache-misses ./a.out
 # 找出代码级问题点
-sudo perf report -g -F+period,srcline
+perf report -g -F+period,srcline
 # 优化问题
 ```
 
@@ -204,3 +209,43 @@ sudo perf report -g -F+period,srcline
 > *   `高 IPC 不一定代表高性能`！-O0 的 IPC 高，那是因为它在疯狂执行 MOV 和 整数运算 等简单的指令，这些简单指令易于被 CPU 流水线填满，但其实它是在全速运行“垃圾代码”。
 > *   不要试图去优化每一行代码。根据帕累托原则， **90% 的性能问题集中在 10% 的代码中**。熟练使用 `perf annotate` 等工具精准定位性能热点，再结合 `perf c2c` 排除并发陷阱，你就能用最小的力气获得最大的性能提升。
 > *  ` 火焰图`是向团队和老板展示优化成果的最佳工具。
+
+# htop
+![htop-F1](images/htop.png)
+#### 视图切换
+*   **`t` / `F5`**：**树状视图**（Tree View）。
+*   **`H`**：**隐藏/显示用户线程**。合并多线程进程，让列表更简洁。
+*   **`K`**：**隐藏/显示内核线程**。隐藏掉那些带中括号的（如 [kworker]）等内核任务，只看用户程序。
+*   **`p`**：**隐藏/显示路径显示**。显示程序的全路径或只显示程序名。
+*   **`Z`**：**暂停/恢复htop的刷新**。
+#### 排序与过滤（快速定位）
+*   **`F6` / `<` / `>` / `.`**：选择需要**排序**的列。
+    *   **`P`**：按 **CPU** 使用率排序（默认）。
+    *   **`M`**：按 **Memory** 内存占用排序。
+    *   **`T`**：按 **Time** 运行时间排序。
+*   **`I`**：**反转排序**。
+*   **`u`**：**只看某个用户的进程**。按 `u` 后左侧会出现用户列表，可以选择 root 或其他用户。
+*   **`F3` / `/`**：**实时搜索**。
+*   **`F4` / `\`**：**实时过滤**。输入关键字（比如 mysql），屏幕上就只会剩下包含 mysql 字样的进程。
+*   **`Digits`(直接输入数字)**：**PID 增量搜索**。
+#### 进程操作（直接管理任务）
+*   **`Space`**：**标记/选中进程**。你可以上下移动选中多个进程，然后一次性对它们操作（比如全部杀掉）。
+    *   **`U`**：Untag，一键清空所有选中的进程。
+    *   **`F`**：Follow Process，光标会一直跟随你选中的进程，适合监控一个进程的状态变化。
+*   **`F9`(Kill)**：**发送信号**。选中进程后按 `F9`，左侧会出现信号列表。`9` 是SIGKILL强制杀死，`15` SIGTERM是优雅退出等等。
+*   **`F7` / `F8`**：**调整 Nice 值**（优先级）。
+*   **`a`**：**设置 CPU 亲和性(Affinity)**。可以指定某个进程只在特定的 CPU 核心上运行。
+*   **`i`**：**设置 I/O 优先级**。
+#### 深度调试（开发者神器）
+*   **`s`**：**系统调用跟踪(strace)**。选中一个进程按 `s`，查看该进程实时在读写哪些文件、调用哪些网络接口。
+*   **`l`**：**列出打开的文件(lsof)**。查看该进程打开了哪些库文件、配置文件或网络连接。
+*   **`e`**：**查看环境变量(env)**。查看该进程启动时带的所有变量。
+*   **`x`**：**查看文件锁**。
+*   **`w`**：**查看命令参数(args)** 并自动换行。
+#### 自定义界面
+*   **`F2` / `S` / `C`**：这是 `htop` 的设置面板Setup。
+    *   可以自定义顶部显示什么（增加 CPU 温度/频率、电池电量等）。
+    *   可以改变配色方案、添加或删除显示的列等
+#### 基本控制
+*   **`F1` / `h`**：打开帮助菜单（如果你忘了快捷键，按这个最快）。
+*   **`q` / `F10`**：退出。

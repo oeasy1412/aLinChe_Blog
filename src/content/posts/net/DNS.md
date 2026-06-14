@@ -24,7 +24,7 @@ draft: false
 ## 2. DNS 的`缓存`与性能平衡
 试想一下，如果全球几十亿网民每次打开网页、加载一张图片，都要让 DNS 走一遍“根 -> 顶级 -> 权威”的完整层级查询，互联网的骨干网和根服务器恐怕会在一秒钟内瘫痪。因此，DNS 极度依赖**缓存机制**：
 *   **浏览器缓存**：最快，直接从内存读取。（[`chrome://net-internals/#dns`](chrome://net-internals/#dns) 你可以直接看到浏览器内部维护的域名映射和过期状态）
-*   **操作系统缓存**：如果浏览器缓存没有，操作系统会优先读取本地的 `hosts` 文件，如果没有命中再查找 OS 本身的DNS缓存。(Windows:  ipconfig /displaydns 查看, ipconfig /flushdns 清理)
+*   **操作系统缓存**：如果浏览器缓存没有，操作系统会优先读取本地的 `hosts` 文件，如果没有命中再查找 OS 本身的DNS缓存。(Windows:  `ipconfig /displaydns` 查看, `ipconfig /flushdns` 清理)
 *   **路由器缓存(Router Cache)**：如果系统缓存也没有，请求会被发给你的路由器，大部分智能路由器也会缓存常用域名。
 *   **本地域名服务器(Local DNS)**：通常由你的 ISP（电信/移动/联通）提供，或你手动配置的公共 DNS（如 114.114.114.114），这里是一个巨大的共享资源池，汇聚了全网用户的查询结果，命中率极高。
 *   只有当这四道缓存全部未命中或已过期时，Local DNS 才会真正向外网发起迭代查询。
@@ -61,23 +61,37 @@ TTL 定义了记录在缓存中存活的时间。**TTL设置是一门艺术**：
 # 查看一个域名的完整解析过程
 dig bilibili.com +trace
 
+## 1. 向本地 DNS 获取全球 13 组根服务器 (Root Server) 的地址作为查询起点。
 # ...
-# ;; Received 811 bytes from 172.23.240.1#53(172.23.240.1) in 851 ms
-# 向本地 DNS 获取全球 13 组根服务器 (Root Server) 的地址作为查询起点。
+# .                       1515    IN      NS      b.root-servers.net.
+# ...
+# ;; Received 519 bytes from 127.0.0.53#53(127.0.0.53) in 36 ms
 
+## 2. 随机询问一个根服务器(b.root-servers.net)，根据它的顶级域名(.com)记录，将查询委派给负责该域名的 顶级域名服务器。(其中DS RRSIG是DNS安全扩展DNSSEC签名，用于防范DNS污染)
+# ...
+# com.                    172800  IN      NS      l.gtld-servers.net.
+# com.                    172800  IN      NS      m.gtld-servers.net.
+# com.                    86400   IN      DS      19718 13 2 8ACBB0CD28F41250A80A491389424D341522D946B0DA0C0291F2D3D7 71D7805A
+# com.                    86400   IN      RRSIG   DS 8 1 86400 20260620050000 20260607040000 54393 . adMxgKyL48/i5bCSLUn+VKGuDB4eMAOFAgGYo4FKKN9x2waoE/Pbx5JC XPhqsE52lvym53t0Tso5zCFkuRiCuQmABzL9Dv91Ue0zy5TIlPaYxcDY 859W1ocNbT7V8pcydyAshPOO2Tm+bK9nE6Hn+yM0KcFwLqTTfX/5fW06 4LIZJJavsaYwRuZKovgpwXPGu9yIwut7toRiPzJpOCeZtZMeLjl9Ivho BoJvLQw5NXHJM26KLJw0LjIwL6Ofyw+lg4ws4Q8R9M+/MSe+8Oc3Mi3g /5c8IDpgcrvE8L+2zCyjFFtEzHHnqrFYssMzE2Nk0RqW4lZpmP/IV2yp gqMVXA==
+# ;; Received 1172 bytes from 170.247.170.2#53(b.root-servers.net) in 360 ms
+
+## 3. 随机询问一个顶级域名服务器(l.gtld-servers.net)，根据它的权威服务器记录，将查询委派给负责该域名的 权威服务器（腾讯云 DNSPod）。
 # bilibili.com.           172800  IN      NS      ns3.dnsv5.com.
 # bilibili.com.           172800  IN      NS      ns4.dnsv5.com.
-# ;; Received 768 bytes from 192.5.6.30#53(h.root-servers.net) in 333 ms
-# 随机询问一个根服务器(h.root-servers.net)，它根据顶级域名(.com)的记录，将查询委派给负责该域名的 权威DNS（腾讯云 DNSPod）。
+# CK0POJMG874LJREF7EFN8430QVIT8BSM.com. 900 IN NSEC3 1 1 0 - CK0Q3UDG8CEKKAE7RUKPGCT1DVSSH8LL NS SOA RRSIG DNSKEY NSEC3PARAM
+# CK0POJMG874LJREF7EFN8430QVIT8BSM.com. 900 IN RRSIG NSEC3 13 2 900 20260611002623 20260603231623 27677 com. Ee7AvFaMqIt5EQ+fxYoc9L66mOcphmogDfgMM7tp6VdYSmqfcqo99dlD npYJqmtliHr53dsxyrnphcqH9N2VAw==
+# 34N8IUNMFDGUL13GCNB325CKVM924592.com. 900 IN NSEC3 1 1 0 - 34N8VR2QIA8E6FQT7AUGCM6FARONEELO NS DS RRSIG
+# 34N8IUNMFDGUL13GCNB325CKVM924592.com. 900 IN RRSIG NSEC3 13 2 900 20260612031417 20260605020417 27677 com. aVguNi8TIRnDRVVP4YX7ljMw7iXuhYz0oe1imDk7M3ixaSBBB/ov0XW7 kG1njb+4NXT24tDvYqNXo3ys7w5I5Q==
+# ;; Received 768 bytes from 2001:500:d937::30#53(l.gtld-servers.net) in 108 ms
 
+## 4. 随机询问一个权威服务器(ns4.dnsv5.com)，根据它的DNS记录，返回域名对应的IP地址列表（A/AAAA记录）及TTL值，完成解析。
 # bilibili.com.           60      IN      A       139.159.241.37
+# bilibili.com.           60      IN      A       8.134.50.24
 # bilibili.com.           60      IN      A       47.103.24.173
 # bilibili.com.           60      IN      A       119.3.70.188
-# bilibili.com.           60      IN      A       8.134.50.24
-# bilibili.com.           86400   IN      NS      ns4.dnsv5.com.
 # bilibili.com.           86400   IN      NS      ns3.dnsv5.com.
-# ;; Received 159 bytes from 117.89.178.52#53(ns4.dnsv5.com) in 42 ms
-# 最终由权威服务器（腾讯云 DNSPod）返回该域名对应的 A 记录（IPv4 地址列表）及 TTL 值，并完成解析。
+# bilibili.com.           86400   IN      NS      ns4.dnsv5.com.
+# ;; Received 159 bytes from 117.89.178.52#53(ns4.dnsv5.com) in 39 ms
 ```
 
 **抓包观察重点：**
