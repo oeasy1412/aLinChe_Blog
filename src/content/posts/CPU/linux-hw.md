@@ -10,19 +10,21 @@ draft: false
 ## 系统
 ```sh
 uname -a
-# Linux dragonos-gtx1065 5.15.0-177-generic #187-Ubuntu SMP Sat Apr 11 22:54:33 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+# Linux dragonos-gtx1065 6.8.0-124-generic #124~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Tue May 26 21:05:19 UTC  x86_64 x86_64 x86_64 GNU/Linux
 
 hostnamectl
-#  Static hostname: mycomputer-gtx1065
+#  Static hostname: dragonos-gtx1065
 #        Icon name: computer-desktop
 #          Chassis: desktop
 #       Machine ID: 8ea88b201cd0486dad6c2be6f1e91bad
-#          Boot ID: e3194afb773e4969b46d279436128c21
+#          Boot ID: 0839c57e7cbf4178ad0cd7e1be13a66f
 # Operating System: Ubuntu 22.04.5 LTS
-#           Kernel: Linux 5.15.0-177-generic
+#           Kernel: Linux 6.8.0-124-generic
 #     Architecture: x86-64
 #  Hardware Vendor: Micro-Star International Co., Ltd.
 #   Hardware Model: MS-7C96
+
+# P.S. 如果server想更新HWE内核 sudo apt install linux-generic-hwe-22.04
 ```
 
 ## baseboard
@@ -51,7 +53,7 @@ sudo dmidecode -t baseboard
 #         Type Instance: 1
 #         Bus Address: 0000:25:00.4
 sudo lshw -C system
-# mycomputer-gtx1065
+# dragonos-gtx1065
 #     description: Desktop Computer
 #     product: MS-7C96 (To be filled by O.E.M.)
 #     vendor: Micro-Star International Co., Ltd.
@@ -103,7 +105,7 @@ sudo dmidecode -t memory
 #         Bank Locator: P0 CHANNEL B    # 双通道
 
 sudo apt install i2c-tools
-sudo decode-dimms # 可能需要 sudo modprobe ee1004
+sudo decode-dimms # 可能需要 sudo modprobe i2c-dev i2c-piix4 ee1004
 # Decoding EEPROM: /sys/bus/i2c/drivers/ee1004/0-0050
 # Guessing DIMM is in                              bank 1
 # Kernel driver used                               ee1004
@@ -181,17 +183,78 @@ sudo decode-dimms # 可能需要 sudo modprobe ee1004
 ## 磁盘
 ```sh
 lsblk -f # blkid
+# sda
+# └─sda1            ext4        1.0            ce257b8f-8469-4445-9afc-adc9d8a1be28    891.5G     2% /data1
 # nvme0n1
-# ├─nvme0n1p1       vfat        FAT32          5F39-2858                                   1G     1% /boot/efi
+# ├─nvme0n1p1       vfat        FAT32          5F39-2858                                   1G     4% /boot/efi
 # ├─nvme0n1p2       ext4        1.0            bdaf3ad9-d681-44c9-a4e7-5f8817bee337      1.4G    22% /boot
 # └─nvme0n1p3       LVM2_member LVM2 001       NPotXR-UNEj-cEja-1KA3-h6bS-iqPZ-gPfaoC
 #   └─ubuntu--vg-ubuntu--lv
-#                   ext4        1.0            3a5f860c-a18f-4ec4-ade3-289146ee9412     25.9G    73% /
+#                   ext4        1.0            3a5f860c-a18f-4ec4-ade3-289146ee9412     51.0G    51% /
 
 df -hT
-# /dev/mapper/ubuntu--vg-ubuntu--lv ext4   115G   83G   26G  77% /
+# Filesystem                        Type   Size  Used Avail Use% Mounted on
+# /dev/mapper/ubuntu--vg-ubuntu--lv ext4   115G   59G   51G  54% /
 # /dev/nvme0n1p2                    ext4   2.0G  432M  1.4G  24% /boot
-# /dev/nvme0n1p1                    vfat   1.1G  6.1M  1.1G   1% /boot/efi
+# /dev/nvme0n1p1                    vfat   1.1G   39M  1.1G   4% /boot/efi
+# /dev/sda1                         ext4   916G   15G  892G   2% /data1
+
+sudo lshw -C storage -C disk
+#   *-nvme
+#        description: NVMe device
+#        product: UMIS RPJTJ128MEE1MWX
+#        vendor: Union Memory (Shenzhen)
+#        physical id: 0
+#        bus info: pci@0000:01:00.0
+#        logical name: /dev/nvme0
+#        version: 2.1C0628
+#        serial: SS1B60642Z1CD33D12PG
+#        width: 64 bits
+#        clock: 33MHz
+#        capabilities: nvme pm msi pciexpress msix nvm_express bus_master cap_list
+#        configuration: driver=nvme latency=0 nqn=nqn.2023-03.com.Ramaxel:nvm-subsystem-sn-SS1B60642Z1CD33D12PG state=live
+#        resources: irq:55 memory:fc800000-fc803fff
+#      *-namespace:0
+#           description: NVMe disk
+#           physical id: 0
+#           logical name: hwmon0
+#      *-namespace:1
+#           description: NVMe disk
+#           physical id: 2
+#           logical name: /dev/ng0n1
+#      *-namespace:2
+#           description: NVMe disk
+#           physical id: 1
+#           bus info: nvme@0:1
+#           logical name: /dev/nvme0n1
+#           size: 119GiB (128GB)
+#           capabilities: gpt-1.00 partitioned partitioned:gpt
+#           configuration: guid=bd156c16-d08a-4543-8af5-44641c6482ef logicalsectorsize=512 sectorsize=512 wwid=eui.044a500330e02198
+#   *-sata
+#        description: SATA controller
+#        product: Advanced Micro Devices, Inc. [AMD]
+#        vendor: Advanced Micro Devices, Inc. [AMD]
+#        physical id: 0.1
+#        bus info: pci@0000:02:00.1
+#        logical name: scsi4
+#        version: 00
+#        width: 32 bits
+#        clock: 33MHz
+#        capabilities: sata msi pm pciexpress ahci_1.0 bus_master cap_list rom emulated
+#        configuration: driver=ahci latency=0
+#        resources: irq:38 memory:fc780000-fc79ffff memory:fc700000-fc77ffff
+#      *-disk
+#           description: ATA Disk
+#           product: HGST HTS721010A9
+#           physical id: 0.0.0
+#           bus info: scsi@4:0.0.0
+#           logical name: /dev/sda
+#           version: A3T0
+#           serial: JR1004BDGMJJMM
+#           size: 931GiB (1TB)
+#           capabilities: gpt-1.00 partitioned partitioned:gpt
+#           configuration: ansiversion=5 guid=040575b8-1113-3440-8b72-53fd7dfca1e7 logicalsectorsize=512 sectorsize=4096
+
 sudo vgdisplay ubuntu-vg # pvdisplay / vgdisplay / lvdisplay  
 #   VG Size               <116.19 GiB
 #   PE Size               4.00 MiB
@@ -200,6 +263,16 @@ sudo vgdisplay ubuntu-vg # pvdisplay / vgdisplay / lvdisplay
 #   Free  PE / Size       0 / 0
 
 du -h . | sort -hr | head -n 30
+# 24G     .
+# 17G     ./anaconda3
+# 9.5G    ./anaconda3/envs/cuda-env
+# 6.4G    ./anaconda3/lib
+# 3.2G    ./.vscode-server
+
+# P.S.    /
+# 23G     /usr
+# 6.7G    /snap
+# 4.8G    /var
 ```
 
 ## CPU
@@ -223,8 +296,9 @@ lscpu
 #     Socket(s):               1
 #     Stepping:                0
 #     Frequency boost:         enabled
-#     CPU max MHz:             3600.0000 # 基础频率MAX
+#     CPU max MHz:             4120.3120
 #     CPU min MHz:             2200.0000
+#     BogoMIPS:                7199.93
 # Virtualization features:
 #   Virtualization:            AMD-V
 # Caches (sum of all):
@@ -238,23 +312,51 @@ lscpu
 
 sudo dmidecode -t processor
 
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+# 3600000
+sudo cpupower frequency-info
+# analyzing CPU 3:
+#   driver: acpi-cpufreq
+#   CPUs which run at the same hardware frequency: 3
+#   CPUs which need to have their frequency coordinated by software: 3
+#   maximum transition latency:  Cannot determine or is not supported.
+#   hardware limits: 2.20 GHz - 4.12 GHz
+#   available frequency steps:  3.60 GHz, 2.80 GHz, 2.20 GHz
+#   available cpufreq governors: conservative ondemand userspace powersave performance schedutil
+#   current policy: frequency should be within 2.20 GHz and 3.60 GHz.
+#                   The governor "schedutil" may decide which speed to use
+#                   within this range.
+#   current CPU frequency: 3.60 GHz (asserted by call to hardware)
+#   boost state support:
+#     Supported: yes
+#     Active: yes
+#     Boost States: 0
+#     Total States: 3
+#     Pstate-P0:  3600MHz
+#     Pstate-P1:  2800MHz
+#     Pstate-P2:  2200MHz
+
 cat /proc/cpuinfo 
 # cpu family   : 23
 # model        : 113
 # model name      : AMD Ryzen 5 3500X 6-Core Processor
-# microcode    : 0x8701030
+# microcode       : 0x8701035
+# cpu MHz         : 2155.970
+# cache size      : 512 KB
 # physical id     : 0
 # siblings        : 6
 # cpu cores       : 6
+# TLB size        : 3072 4K pages
+# address sizes   : 43 bits physical, 48 bits virtual
 ```
 
 ## GPU
 ```sh
 ## 通用方式：
 lspci -v | grep -A 20 -E "VGA|3D"
-# 23:00.0 VGA compatible controller: NVIDIA Corporation GP106 [GeForce GTX 1060 5GB] (rev a1) (prog-if 00 [VGA controller])
+# 24:00.0 VGA compatible controller: NVIDIA Corporation GP106 [GeForce GTX 1060 5GB] (rev a1) (prog-if 00 [VGA controller])
 #         Subsystem: Device 7377:0000
-#         Flags: bus master, fast devsel, latency 0, IRQ 67, IOMMU group 16
+#         Flags: bus master, fast devsel, latency 0, IRQ 73, IOMMU group 16
 #         Memory at fb000000 (32-bit, non-prefetchable) [size=16M]
 #         Memory at 7fe0000000 (64-bit, prefetchable) [size=256M]
 #         Memory at 7ff0000000 (64-bit, prefetchable) [size=32M]
@@ -263,9 +365,10 @@ lspci -v | grep -A 20 -E "VGA|3D"
 #         Capabilities: <access denied>
 #         Kernel driver in use: nvidia
 #         Kernel modules: nvidiafb, nouveau, nvidia_drm, nvidia
-# 23:00.1 Audio device: NVIDIA Corporation GP106 High Definition Audio Controller (rev a1)
+
+# 24:00.1 Audio device: NVIDIA Corporation GP106 High Definition Audio Controller (rev a1)
 #         Subsystem: Device 7377:0000
-#         Flags: bus master, fast devsel, latency 0, IRQ 71, IOMMU group 16
+#         Flags: bus master, fast devsel, latency 0, IRQ 85, IOMMU group 16
 #         Memory at fc080000 (32-bit, non-prefetchable) [size=16K]
 #         Capabilities: <access denied>
 #         Kernel driver in use: snd_hda_intel
@@ -329,7 +432,7 @@ cat /proc/net/wireless
 sudo lspci -nnkv | grep -A 20 -E "Ethernet"
 # 22:00.0 Ethernet controller [0200]: Realtek Semiconductor Co., Ltd. RTL8111/8168/8411 PCI Express Gigabit Ethernet Controller [10ec:8168] (rev 15)
 #         Subsystem: Micro-Star International Co., Ltd. [MSI] RTL8111/8168/8411 PCI Express Gigabit Ethernet Controller [1462:7c96]
-#         Flags: bus master, fast devsel, latency 0, IRQ 35, IOMMU group 15
+#         Flags: bus master, fast devsel, latency 0, IRQ 34, IOMMU group 15
 #         I/O ports at f000 [size=256]
 #         Memory at fc604000 (64-bit, non-prefetchable) [size=4K]
 #         Memory at fc600000 (64-bit, non-prefetchable) [size=16K]
@@ -379,15 +482,69 @@ mokutil --sb-state
 # A-XMP: [Disabled]->[Enabled]
 ```
 
-## 其他
+## 声卡
 ```sh
+lspci -nnkv | grep -A 10 -E "Audio"
+# 24:00.1 Audio device [0403]: NVIDIA Corporation GP106 High Definition Audio Controller [10de:10f1] (rev a1)
+#         Subsystem: Device [7377:0000]
+#         Flags: bus master, fast devsel, latency 0, IRQ 85, IOMMU group 16
+#         Memory at fc080000 (32-bit, non-prefetchable) [size=16K]
+#         Capabilities: <access denied>
+#         Kernel driver in use: snd_hda_intel
+#         Kernel modules: snd_hda_intel
+# --
+# 26:00.4 Audio device [0403]: Advanced Micro Devices, Inc. [AMD] Starship/Matisse HD Audio Controller [1022:1487]
+#         DeviceName: Realtek ALC1220
+#         Subsystem: Micro-Star International Co., Ltd. [MSI] Starship/Matisse HD Audio Controller [1462:9c96]
+#         Flags: bus master, fast devsel, latency 0, IRQ 87, IOMMU group 21
+#         Memory at fc400000 (32-bit, non-prefetchable) [size=32K]
+#         Capabilities: <access denied>
+#         Kernel driver in use: snd_hda_intel
+#         Kernel modules: snd_hda_intel
+
+## 3.5mm 音频接口状态
+amixer -c 1 contents | grep -A 2 "Jack"
+# numid=35,iface=CARD,name='Front Headphone Jack'
+#   ; type=BOOLEAN,access=r-------,values=1
+#   : values=on
+# numid=32,iface=CARD,name='Front Mic Jack'
+#   ; type=BOOLEAN,access=r-------,values=1
+#   : values=off
+# numid=33,iface=CARD,name='Line Jack'
+#   ; type=BOOLEAN,access=r-------,values=1
+#   : values=off
+# numid=34,iface=CARD,name='Line Out Jack'
+#   ; type=BOOLEAN,access=r-------,values=1
+#   : values=off
+# numid=31,iface=CARD,name='Rear Mic Jack'
+#   ; type=BOOLEAN,access=r-------,values=1
+#   : values=off
+
+aplay -l
+# **** List of PLAYBACK Hardware Devices ****
+# ...
+# card 1: Generic [HD-Audio Generic], device 0: ALC897 Analog [ALC897 Analog]
+#   Subdevices: 1/1
+#   Subdevice #0: subdevice #0
 cat /proc/asound/cards
 #  0 [NVidia         ]: HDA-Intel - HDA NVidia
-#                       HDA NVidia at 0xfc080000 irq 71
+#                       HDA NVidia at 0xfc080000 irq 85
 #  1 [Generic        ]: HDA-Intel - HD-Audio Generic
-#                       HD-Audio Generic at 0xfc400000 irq 73
+#                       HD-Audio Generic at 0xfc400000 irq 87
+alsamixer # 选择声卡(F6或s)和调整音量 # speaker-test -D hw:1,0 -c 2 -t wav # 测试
+cat ~/.asoundrc # 设置默认声卡
+# defaults.pcm.card 1
+# defaults.ctl.card 1
+aplay ~/music/一番的宝物.wav # while true; aplay ~/music/*.wav; sleep 1; end # ffmpeg -i ab.mp4 -vn -acodec pcm_s16le -ar 44100 -ac 2 ab.wav -y
+# Playing WAVE '/home/dragonos/music/一番的宝物.wav' : Signed 16 bit Little Endian, Rate 44100 Hz, Stereo
+```
 
+## 其他
+```sh
 sensors
+# iwlwifi_1-virtual-0
+# Adapter: Virtual device
+# temp1:        +27.0°C
 # nvme-pci-0100
 # Adapter: PCI adapter
 # Composite:    +33.9°C  (low  = -273.1°C, high = +74.8°C)
@@ -399,16 +556,17 @@ sensors
 ```
 
 速览：
-| 配件 | 规格 | 价格(元) |
-| :--- | :--- | :--- |
-| 主板 | MSI A520M-A PRO | 350 |
-| CPU | AMD Ryzen 5 3500X + 塔散 | 300 + 50 |
-| 显卡 | GTX 1060 5G | 500 |
-| 内存 | 2*光威 DDR4 3200 8G (长鑫颗粒) | 200 |
-| 固态 | SSD 128G | 80 |
-| 电源 | 长城 额定300W | 100 |
-| 无线网卡 | AX210 芯片 | 100 |
-| 机箱 | Tt 启航者 F4 | 120 |
-| 机箱风扇 | 利民 TL-C12B V2 工包 (x2) | 20 * 2 |
+| 配件 | 规格 | 价格(元) | 估算功耗(峰值/满载) |
+| :--- | :--- | :--- | :--- |
+| 主板 | MSI A520M-A PRO | 350 | ~30W |
+| CPU | AMD Ryzen 5 3500X + 塔散 | 300 + 50 | ~80W |
+| 显卡 | GTX 1060 5G | 500 | ~130W |
+| 内存 | 2*光威 DDR4 3200 8G (长鑫颗粒) | 200 | ~2*5W |
+| 固态 | SSD 128G | 80 | ~5W |
+| 机械 | HDD 1T | 100 | ~10W |
+| 电源 | 长城 额定300W | 100 | 电源 |
+| 无线网卡 | AX210 芯片 | 100 | ~5W |
+| 机箱 | Tt 启航者 F4 | 120 | ~0W |
+| 机箱风扇 | 利民 TL-C12B V2 工包 (x2) | 2 * 20 | ~2*3W |
 
-一手估计：1840
+一手估计：1940, 276W

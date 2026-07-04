@@ -91,6 +91,19 @@ draft: false
         "registry-mirrors": ["https://docker.mirrors.ustc.edu.cn/","https://registry.docker-cn.com"]
     }
     docker info | grep "Registry Mirrors" -A 5
+
+    ## 清理
+    docker system df # -v
+    docker images -f "dangling=true"
+    docker volume ls && docker network ls
+    docker system prune
+    docker builder prune -af  # 仅清构建缓存
+    docker image prune -f     # 仅删悬空镜像
+    docker container prune -f # 删所有已停止的容器
+    # docker volume prune -f    # 删所有未被引用的卷
+    # docker network prune -f   # 删所有未使用的网络
+
+
 ```
 #### hub.docker.com
 ```sh

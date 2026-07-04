@@ -132,6 +132,36 @@ p -> d -> n -> w
 sudo partprobe
 sudo resize2fs /dev/sda2
 
+# 挂载新硬盘
+lsblk
+sudo fdisk /dev/sdb
+g -> n -> w
+sudo mkfs.ext4 /dev/sdb1
+sudo mkdir /data
+sudo mount /dev/sdb1 /data
+sudo blkid /dev/sdb1 # 记录UUID
+sudo vim /etc/fstab  # UUID=<UUID>  /data  ext4  defaults  0  2
+sudo mount -a # 测试自动挂载
+sudo chown -R $USER:$USER /data
+sudo tune2fs -m 1 /dev/sdb1 # 将保留块调整为1%
+# move ~/.cache to HDD
+for dir in conda nvidia huggingface modelscope llamafactory pip torch
+    if test -d ~/.cache/$dir
+        mkdir -p /data1/cache/$dir
+        echo "正在搬运: $dir"
+        rsync -avP ~/.cache/$dir/ /data1/cache/$dir/ && \
+        rm -rf ~/.cache/$dir && \
+        ln -s /data1/cache/$dir ~/.cache/$dir
+    end
+end
+if test -d ~/anaconda3/pkgs
+    echo "正在搬运: Anaconda pkgs"
+    rsync -avP ~/anaconda3/pkgs/ /data1/cache/anaconda3/pkgs/ && \
+    rm -rf ~/anaconda3/pkgs/ && \
+    ln -s /data1/cache/anaconda3/pkgs ~/anaconda3/pkgs && \
+    conda config --add pkgs_dirs /data1/cache/anaconda3/pkgs/
+end
+
 # hostname
 sudo hostnamectl set-hostname aLinChe
 # netplan
@@ -1058,6 +1088,17 @@ opencode serve --hostname 0.0.0.0 --port 4096 # --mdns --mdns-domain myopencode
 ```
 
 
+## omp
+```sh
+# https://github.com/can1357/oh-my-pi
+# curl -fsSL https://bun.sh/install | bash
+bun install -g @oh-my-pi/pi-coding-agent
+omp install git:github.com/obra/superpowers
+# Windows
+# irm https://omp.sh/install.ps1 | ie
+```
+
+
 ## zellij
 ```sh
 ## scoop (可选，一个Windows工具链)
@@ -1143,7 +1184,6 @@ vim ~/.config/zellij/config.kdl
 
 
 ## Cline with VSCode in Windows
-```sh
 ```json
 {
   "mcpServers": {
@@ -1257,6 +1297,13 @@ https://github.com/Axixi2233/moonlight-android/ # 阿西西安卓端修改版
 https://github.com/termux/termux-app/
 https://github.com/termux/termux-api/
 
+getprop ro.product.model # 显示手机型号
+getprop ro.product.cpu.abi # arm64-v8a
+getprop ro.build.version.release # 显示Android版本号
+getprop ro.board.platform # 显示手机芯片平台
+getprop | grep product
+uname -a # Linux localhost 4.9.148 #1 SMP PREEMPT Wed May 10 16:58:39 CST 2023 aarch64 Android
+
 vim $PREFIX/etc/apt/sources.list # 自带nano
 deb https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main stable main
 # termux-change-repo # 使用Termux提供的交互式工具更换镜像源
@@ -1264,15 +1311,14 @@ deb https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main stable main
 # pkg install ustc.sources
 
 pkg update && pkg upgrade
-pkg install vim openssh termux-services
-# pkg install htop clang (可选)
+pkg install vim openssh termux-services -y
+# pkg install git htop zellij clang termux-api (可选)
 
 whoami
-passwd
+passwd  # vim ~/.ssh/authorized_keys
 ifconfig
 sshd
 # ssh 安卓用户名@IP -p 8022
-pkg i termux-services
 sv-enable ssh-agent
 sv-enable sshd # sv status sshd
 vim $PREFIX/etc/termux-login.sh
@@ -1302,6 +1348,13 @@ Host myHand
   ServerAliveCountMax 3
   IdentityFile C:\Users\Name\.ssh\myHand_id_rsa # 使用密钥认证(推荐)
 
+# 保活
+# 手机管家->应用启动管理->Termux->允许自启动、允许后台运行
+# 设置->电池优化->Termux->不允许优化
+# 后台多任务界面“加锁”
+# 可以使用 Shizuku 实现 adb shell 提权
+## HWJKM-H:/ $ getprop ro.serialno # 可看SN号
+
 termux-setup-storage # 允许访问手机的存储空间
 
 termux-vibrate
@@ -1318,6 +1371,34 @@ am start com.tencent.mobileqq/.activity.SplashActivity
 
 termux-battery-status
 termux-notification
+
+# rish -c htop
+readelf -d /data/data/com.termux/files/usr/bin/htop | grep NEEDED
+
+mkdir -p /sdcard/htop/terminfo/x/
+export TERMUX_USR="/data/data/com.termux/files/usr"
+cp $TERMUX_USR/bin/htop /sdcard/htop/
+cp $TERMUX_USR/lib/libandroid-support.so /sdcard/htop/
+cp $TERMUX_USR/lib/libncursesw.so.6 /sdcard/htop/
+cp $TERMUX_USR/share/terminfo/x/xterm-256color /sdcard/htop/terminfo/x/
+
+vim ~/super-htop.sh # && chmod +x ~/super-htop.sh
+#!/bin/bash
+LOCAL_TMP="/data/local/tmp"
+echo "[*] 正在检查 Shizuku 状态..."
+if ! ~/Termux/rish -c "id" >/dev/null 2>&1; then
+    echo "[!] 错误: Shizuku 未启动或未授权！请先打开 Shizuku App 启动服务。"
+    exit 1
+fi
+echo "[*] 正在同步 htop 环境到系统目录..."
+~/Termux/rish -c "cp -rf /sdcard/htop/. $LOCAL_TMP && chmod 777 $LOCAL_TMP/htop"
+echo "[*] 启动提权版 htop..."
+~/Termux/rish -c "
+    export HOME=$LOCAL_TMP;
+    export LD_LIBRARY_PATH=$LOCAL_TMP &&
+    export TERMINFO=$LOCAL_TMP/terminfo &&
+    $LOCAL_TMP/htop
+"
 ```
 
 
@@ -1329,6 +1410,17 @@ https://tbtool.dawnstd.cn/
 ## MinGW-w64
 ```sh
 https://winlibs.com/
+```
+
+## speedtest
+```sh
+# 通过 Ookla 官方脚本添加源
+curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
+sudo apt install speedtest -y
+
+nmcli connection show
+cat /proc/net/wireless
+sudo nmcli connection up "Wifi名称SSID"
 ```
 
 ## OpenVPN
