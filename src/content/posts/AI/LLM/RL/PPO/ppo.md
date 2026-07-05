@@ -58,7 +58,7 @@ $$ A_t = Q(s_t, a_t) - V(s_t) $$
 ### 2. 重要性采样(Importance Sampling)
 PPO 是一种**同轨(同策略)(`On-policy`)** 变 **离轨(异策略)(`Off-policy`)**的算法。我们用旧策略 $\pi_{old}$ 收集了一大批数据，要想用这些数据去更新新策略 $\pi_\theta$，就需要计算两者**概率**的比例：
 $$ r_t(\theta) = \frac{\pi_\theta(a_t | s_t)}{\pi_{old}(a_t | s_t)} $$
-*   PPO 的 Loss 计算与 $r_t(\theta) · \hat{A}_t$ 相关，即 $重要性\times优势$ 。
+*   PPO 的 Loss 计算与 $r_t(\theta) · \hat{A}_t$ 相关，即 重要性 $\times$ 优势 。
 *   **数学直觉**：如果 $r_t(\theta) > 1$，说明新模型比旧模型更倾向于生成这个Token，如果是优势应该放大，如果是不好的更新，应该抑制，此时模型更新力度较大。如果 $r_t(\theta)$ 非常非常的小，说明新模型其实很难生成这次的Token，模型更新力度较小。
 
 ### 3. PPO的损失函数：截断代理目标函数(Clipped Surrogate Objective)

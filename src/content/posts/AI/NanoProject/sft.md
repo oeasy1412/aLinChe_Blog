@@ -75,8 +75,8 @@ draft: false
 ## 2. LoRA适配器 参数与优化器显存 (Trainable Memory)
 LoRA 只训练 **B矩阵(输出维度 × r)** 和 **A矩阵(r × 输入维度)** 两个低秩矩阵。假设我们针对 7 个线性层(q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj)添加 LoRA适配器。
 *   **LoRA 可训练参数量 ($P_{lora}$)**:
-    *   每层参数: $7 \times (h \times r + r \times h) = 7 \times (1024 \times 8 + 8 \times 1024) = 114,688 参数$
-    *   L=24层网络全模型: $L \times 114,688 \approx 2.75M 参数$
+    *   每层参数: $7 \times (h \times r + r \times h) = 7 \times (1024 \times 8 + 8 \times 1024) = 114,688 \text{参数}$
+    *   L=24层网络全模型: $L \times 114,688 \approx 2.75M \text{参数}$
 1. **LoRA 权重显存 ($V_{lora}$)**: $2.75M \times 2B \approx \mathbf{5.5 \, MB}$
 2. **LoRA 权重梯度显存 ($V_{grad}$)**:
     *   **计算**: $2.75M \times 2B \approx \mathbf{5.5 \, MB}$
@@ -131,8 +131,8 @@ Qwen3.5-0.8B 由 24 层组成，采用 **6 层标准层 + 18 层 DeltaNet 层** 
 
 | 组成部分 | 计算逻辑/项 | 无优化显存 (Baseline) | 开启 GC 后显存 |
 | :--- | :--- | :--- | :--- |
-| **基础权重** | $0.8B参数 \times 2B$ (FP16) | 1600.0 MB | 1600.0 MB |
-| **LoRA权重+梯度+优化器状态** | $2.75M参数 \times (2+2+12)B$ | 44.0 MB | 44.0 MB |
+| **基础权重** | $0.8B\text{参数} \times 2B$ (FP16) | 1600.0 MB | 1600.0 MB |
+| **LoRA权重+梯度+优化器状态** | $2.75M\text{参数} \times (2+2+12)B$ | 44.0 MB | 44.0 MB |
 | **前向激活值** | 24层混合架构累加 | **2136 MB** | **~ 750.0 MB** *(大幅下降)* |
 | **CUDA/框架开销** | PyTorch 上下文 | ~ 600.0 MB | ~ 600.0 MB |
 | **总计 (Total VRAM)** | 理论估算值 | **约 4.28 GB** | **约 2.92 GB** |
