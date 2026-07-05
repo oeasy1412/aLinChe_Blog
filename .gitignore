@@ -26,6 +26,10 @@ package-lock.json
 bun.lockb
 yarn.lock
 
+# ide
+.idea
+*.iml
+
 # obsidian
 .obsidian/
 .smtcmp_json_db

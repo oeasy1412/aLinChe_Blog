@@ -2,9 +2,9 @@ name: Build and Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main, master ] # 只在 main 分支 push 时触发
+    branches: [ main, master ] # Adjust branches as needed
   pull_request:
-    branches: [ main, master ] # PR 时只做检查，不部署
+    branches: [ main, master ] # Adjust branches as needed
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,17 +19,17 @@ jobs:
   check:
     strategy:
       matrix:
-        node: [ 20 ] # GitHub Pages 推荐 LTS 版本
+        node: [ 22, 23 ]
     runs-on: ubuntu-latest
     name: Astro Check for Node.js ${{ matrix.node }}
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
         with:
-          node-version: ${{ matrix.node }} # 使用 LTS
+          node-version: ${{ matrix.node }} # Use LTS
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
@@ -42,7 +42,10 @@ jobs:
       - name: Run Astro Check
         run: pnpm astro check
 
-  deploy:
+  build:
+    strategy:
+      matrix:
+        node: [ 23 ]
     if: ${{ github.event_name == 'push' && contains(' refs/heads/main refs/heads/master ', github.ref) }}
     needs: check # 确保检查通过后再部署
     runs-on: ubuntu-latest
@@ -51,10 +54,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
         with:
-          node-version: 20
+          node-version: ${{ matrix.node }}
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
