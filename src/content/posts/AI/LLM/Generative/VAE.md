@@ -1,7 +1,7 @@
 ---
-title: VAE
+title: 生成式模型的发展历程
 published: 2026-07-01
-description: VAE
+description: 从 VAE 到 流匹配 的数学基础与核心思路
 tags: [Generative, Diffusion, LLM]
 category: LLM
 draft: false
@@ -30,10 +30,10 @@ $$
 **直观理解：**
 - **等式左边 $f\left(\sum \lambda_i x_i\right)$：【先加权，后映射】**
     我们先把所有的输入参数 $x_i$ 按照权重 $\lambda_i$ 混合起来（求加权平均值/重心），得到一个新的点，然后再把这个混合后的点代入函数 $f$ 中求值。
-    - *👉 几何意义：先在 X 轴上找到这群点的“重心”，然后看这个重心对应的**“函数曲线上的点”**。*
+    - *👉 几何意义：先在 x 轴上找到这群点的“重心”，然后看这个重心对应的“函数曲线上的点”。*
 - **等式右边 $\sum \lambda_i f(x_i)$：【先映射，后加权】**
     我们先分别算出每个输入参数对应的函数值 $f(x_1), f(x_2)...$，然后再对这些**函数值（即 Y 轴上的高度）**按照同样的权重求加权平均。
-    - *👉 几何意义：找到这群点在函数曲线上的位置，然后直接在空间中求这些点的“重心”。这个重心必然悬空落在连接这些点的**“多边形弦（割线面）上”**。*
+    - *👉 几何意义：找到这群点在函数曲线上的位置，然后直接在空间中求这些点的“重心”。这个重心必然悬空落在连接这些点的“多边形弦（割线面）上”。*
 
 将权重 $\lambda_i$ 视为 **概率 $P(x_i)$**，数学期望 $\mathbb{E}[X] = \sum P(x_i) x_i$，而函数值 $f(x)$ 按概率加权求和 $\sum P(x_i) f(x_i)$ 即为 $\mathbb{E}[f(X)]$。
 
@@ -52,7 +52,7 @@ $$
 > 
 > 分母上的 $\int P(X|Z)P(Z) dZ$ 是一个极其高维的积分。假如隐变量 $Z$ 是 256 维的向量，你要对 256 维空间做连续积分，这会导致**维度灾难**，就算是超级计算机算到宇宙毁灭也算不出来精确值（x
 > 
-> 而且它也**无法使用蒙特卡洛采样(Monte Carlo)**：“积分算不出，那我随机采样几个 $Z$ 近似代替不就行了吗？”的思路不可取，因为在茫茫的高维 $Z$ 空间里，随便盲抽一个 $Z$（比如瞎猜一组猫的特征），它能解码出现实图片 $X$ 的 **似然概率** $P(X|Z)$ 几乎为 0。（我连十连出金都没见过几个.jpg）
+> 而且它也**无法使用蒙特卡洛采样(Monte Carlo)**：“积分算不出，那我随机采样几个 $Z$ 近似代替不就行了吗？”的思路并不可取，因为在茫茫的高维 $Z$ 空间里，随便盲抽一个 $Z$（比如瞎猜一组猫的特征），它能解码出像现实图片 $X$ 的 **似然概率** $P(X|Z)$ 几乎为 0。（我十连出金都没见过几次说是.jpg）
 
 利用对于对数函数的 Jensen 不等式，我们可以把 $\log$ 移到期望的外面，从而将复杂的极大似然估计转化为优化一个**下界 (Lower Bound)**。这就是 VAE（变分自编码器）中著名的 **`ELBO`(Evidence Lower Bound，证据下界)** 的由来（后文会细讲）。
 
@@ -90,7 +90,7 @@ $$ = - \log \left( \int P(x) \frac{Q(x)}{P(x)} dx \right) = - \log \left( \int Q
 ---
 
 # 二、VAE 变分自编码器 的核心思路
-**代表技术**：VAE (2014)
+**代表技术**：VAE (2013)
 
 > 论文：**Auto-Encoding Variational Bayes** · Kingma, Welling · arXiv：[1312.6114](https://arxiv.org/abs/1312.6114)
 
@@ -154,7 +154,7 @@ $$
 = \mathbb{E}_{Z \sim Q_\phi(Z|X)} \left[ \log \frac{Q_\phi(Z|X)}{P(Z)} \right] - \mathbb{E}_{Z \sim Q_\phi(Z|X)} \left[ \log P_\theta(X|Z) \right] = - \text{ELBO}
 $$
 
-当期望 $\mathbb{E}$ 被提到最外面后，由莱布尼茨积分法则，求导算子可以直接穿透期望，即：$\nabla \mathbb{E}[...] = \mathbb{E}[\nabla ...]$。
+当期望 $\mathbb{E}$ 被提到最外面后，由**莱布尼茨积分法则**，求导算子可以直接穿透期望，即：$\nabla \mathbb{E}[...] = \mathbb{E}[\nabla ...]$。
 
 这就将一个无法计算的极大似然估计问题，巧妙转化为了**优化一个可微分的下界(ELBO)**。
 
@@ -220,18 +220,173 @@ $$
 这就是**流匹配目标函数 (Flow Matching Objective)**：
 $ \mathcal{L}_{FM}(\theta) = \mathbb{E}_{t \sim U[0,1], x \sim p_t(x)} \left[ ||v_\theta(x_t, t) - u_t^{marginal}(x_t)||^2 \right] $
 
-## 3. 条件流匹配
-但是事实是我们根本不知道那个全局的、理想的向量场 $u_t^{marginal}(x)$ 究竟长什么样，
+## 3. 条件流匹配 (`CFM`, Conditional Flow Matching) 与 边缘化定理
+但是事实是我们根本不知道那个全局的、理想的向量场 $u_t^{marginal}(x)$ 究竟长什么样。
 
----
+因为要计算全局的向量场，我们需要知道空间中所有数据的分布，并将它们在 $t$ 时刻的流动状态全部叠加起来。在极其高维的图像空间（如 $1024 \times 1024$ 的图片）中，这完全是一个难解的积分问题（Intractable）。
 
-## TODO：DDPM，EDM，条件流匹配CFM，直流最优传输，边缘化定理，Reflow + Distill
+- 边缘化定理核心思想是：**“既然无法掌控全局，那就先聚焦于单一目标。”**
+如果我们不看整个数据集，而是**只取出一张具体的终点图片 $x_1$** 作为 **“条件”**。我们要构建一个从随机噪声分布走到这**唯一**一张图片 $x_1$ 的路径。这太简单了！我们完全可以人为定义这条即条件概率路径 $p_t(x|x_1)$ 及其 条件向量场 $u_t(x|x_1)$。
+
+- 数学家们通过神奇的**边缘化定理**证明了：**让神经网络去拟合局部的、条件向量场，在数学期望上完全等价于拟合全局向量场！**
+
+由此，我们将目标函数改写为 **条件流匹配(CFM)** 目标函数：
+$$
+\mathcal{L}_{CFM}(\theta) = \mathbb{E}_{t \sim U[0,1], x_1 \sim q(x_1), x_t \sim p_t(x_t|x_1)} \left[ ||v_\theta(x_t, t) - u_t(x_t|x_1)||^2 \right]
+$$
+- $x_1$ 是从数据集中抽样出的一张真实图片。
+- $x_t$ 是我们人为设计的、通向 $x_1$ 的路径上的点。
+- $u_t(x_t|x_1)$ 是我们人为设计的、通向 $x_1$ 的速度。
+- 神经网络 $v_\theta$ 现在的任务变成了：在看到 $x_t$ 时，预测出那个通向 $x_1$ 的条件速度。
+
+通过这个定理，原本不可解的无监督积分问题，瞬间变成了一个简单的、可用梯度下降优化的**监督学习**问题！
+
+## 4. 化繁为简：直流 (`Rectified Flow`) 与 最优传输 (`Optimal Transport`)
+既然条件路径是我们人为设计的，那我们应该设计一条怎样的路径呢？
+
+俗话说得好，“两点之间，线段最短”。最简单的路径，就是从初始噪声 $x_0$ 到目标数据 $x_1$ 的**匀速直线**。这就是 **Rectified Flow (直流)** 的核心思想。
+
+设 $x_0 \sim \mathcal{N}(0, I)$ 为纯噪声， $x_1$ 为真实图片。我们在它们之间连一条线：
+$$
+x_t = (1-t) x_0 + t x_1 \quad \text{或写为} \quad x_t = x_0 + t(x_1 - x_0)
+$$
+对时间 $t$ 求导，我们就能得到这条直线的**速度（向量场）**：
+$$
+u_t(x_t|x_1) = \frac{d x_t}{d t} = x_1 - x_0
+$$
+
+把这个直线速度代入刚才的 CFM 损失函数中，得到了极其简洁的训练目标：
+$$
+\mathcal{L}_{RF}(\theta) = \mathbb{E}_{t, x_0, x_1} \left[ ||v_\theta(x_t, t) - (x_1 - x_0)||^2 \right]
+$$
+神经网络 $v_\theta$ 只需要去预测 $(x_1 - x_0)$ 这个差值向量即可！
+
+**这与最优传输 (OT, Optimal Transport) 有什么关系？**
+在流匹配中引入 OT 思想，被称为 **OT-CFM**。如果我们给噪声 $x_0$ 和图像 $x_1$ 随机配对，多条直线在空间中大概率会发生交叉，导致网络在交叉点“不知所措”。最优传输通过最小化 Wasserstein 距离，教我们**如何最优地将噪声点配对给图像点**，使得所有直线的总长度最短，轨迹最不拥挤。OT 加上直线路径，成为了目前图像生成的最优解（如 Stable Diffusion 3 就在使用 OT-CFM）。
+
+## 5. 统一视角：把 `DDPM` 和 `EDM` 纳入麾下
+
+### `DDPM` (Denoising Diffusion Probabilistic Models)
+- **核心思路**：在离散步数下，马尔可夫链的从噪声图片中去噪生成真实图片。本质上是通过随机微分方程(`SDE`)逐步加噪，然后再通过神经网络去预测噪声，逐步去噪。
+#### 1. 正向加噪过程
+图片逐步加噪，最终每个像素要在 $ \mathcal{N}(0, I) $ 的正态分布中
+- **采样公式变成**：$x_t = \sqrt{\alpha_t}x_{t-1} + \sqrt{1 - \alpha_t} \cdot \epsilon_t$ ，其中 $\epsilon_t \sim \mathcal{N}(0, \mathbf{I})$
+- **概率分布变成**：$q(x_t|x_{t-1}) = \mathcal{N}(x_t; \sqrt{\alpha_t}x_{t-1}, (1 - \alpha_t)\mathbf{I})$
+  - 由数学计算，令 $ \bar{\alpha}_t = \prod_{i=1}^t \alpha_i $，有：
+$$
+x_t = \sqrt{\bar{\alpha}_t} x_0 + \sqrt{1 - \bar{\alpha}_t} \epsilon
+$$
+$$
+q(x_t | x_0) = \mathcal{N}(x_t; \sqrt{\bar{\alpha}_t} x_0, (1 - \bar{\alpha}_t)\mathbf{I})
+$$
+
+这意味着，在训练神经网络时我们不需要真的写个循环跑 1000 步。只要给定了一张原图 $x_0$ 和一个随机时间步 $t$，就可以直接查表算出 $\bar{\alpha}_t$，**只需一步**就能立刻得出 $t$ 时刻的加噪图像 $x_t$ 丢给神经网络去训练。这极大提升了训练效率！
+#### 2. 反向去噪过程
+扩散模型的加噪过程是一个**马尔可夫链(Markov Chain)**
+$$
+q(x_{t-1}|x_t, x_0) = \frac{q(x_t|x_{t-1})q(x_{t-1}|x_0)}{q(x_t|x_0)}
+$$
+$$
+p_\theta(x_{t-1}|x_t) \xrightarrow{\text{拟合}} q(x_{t-1}|x_t, x_0) \text{，去预测} q \text{这个高斯分布的均值}
+$$
+
+由数学计算“易得”，有：
+$$
+\tilde{\mu}_t = \frac{\sqrt{\alpha_t}(1 - \bar{\alpha}_{t-1})}{1 - \bar{\alpha}_t} x_t + \frac{\sqrt{\bar{\alpha}_{t-1}}(1 - \alpha_t)}{1 - \bar{\alpha}_t} x_0
+$$
+$$
+\tilde{\beta}_t = \frac{(1 - \alpha_t)(1 - \bar{\alpha}_{t-1})}{1 - \bar{\alpha}_t} \text{，方差为确定值！不用预测}
+$$
+- 此时运用重参数化的技巧，可得只剩标准高斯噪声 $\epsilon$：
+$$
+\tilde{\mu}_t = \frac{1}{\sqrt{\alpha_t}} \left( x_t - \frac{\beta_t}{\sqrt{1 - \bar{\alpha}_t}} \epsilon \right)
+$$
+- 由于公式里的其他项全是已知常数，神经网络要预测均值图像，本质上就只需要去预测加噪过程中的那个标准高斯噪声 $\epsilon$。
+  - 即 一个卷积神经网络 **$\epsilon_\theta(x_t, t)$** 
+- 对 $ Loss = \mathbb{E} \left[ || \tilde{\mu}_t - \mu_\theta(x_t, t) ||^2 \right] $ 化简并去掉常数项后，得：
+$$
+\mathcal{L}_{simple} = \mathbb{E}_{t, x_0, \epsilon} \left[ || \epsilon - \epsilon_\theta(x_t, t) ||^2 \right]
+$$
+
+#### 标准高斯噪声$\epsilon$ 与 得分函数(Score Function) 的关系
+> “预测噪声” 听起来更像是一个工程的Trick，那它在概率论上到底代表什么？
+
+- **得分函数** 的定义是：**数据概率密度函数对数的梯度 $\nabla_x \log p(x)$**。
+$$
+\nabla_{x_t} \log q(x_t | x_0) = \nabla_{x_t} \left( -\frac{(x_t - \sqrt{\bar{\alpha}_t}x_0)^2}{2(1 - \bar{\alpha}_t)} \right) = -\frac{x_t - \sqrt{\bar{\alpha}_t}x_0}{1 - \bar{\alpha}_t} = - \frac{1}{\sqrt{1 - \bar{\alpha}_t}} \epsilon
+$$
+即：$ \epsilon = - \sqrt{1 - \bar{\alpha}_t} \cdot \nabla_{x_t} \log q(x_t | x_0) $，DDPM 中神经网络预测的噪声 $\epsilon$，**在数学上就是一个只相差常数比例的`得分函数`！**
+
+### `EDM` (Elucidating the Design Space)
+- **核心思路**：在连续噪声级别 $\sigma$ 下，以求解一个确定性的概率流常微分方程 (ODE) 的视角，去生成图像。
+#### 1. 引入连续噪声谱 $\sigma$
+- **前向加噪**：定义为原图加上方差为 $\sigma^2$ 的高斯噪声：
+$$
+x = x_0 + \sigma \epsilon \quad (\text{其中 } \epsilon \sim \mathcal{N}(0, \mathbf{I}))
+$$
+- 这里的 $\sigma$ 是一个连续的值（可以从 0 到非常大）。我们不再关心“步数 $t$”，而是关心“当前图像处于什么样的噪声量级 $\sigma$”。这一视角的转变，统一了离散的 DDPM 和连续的 SDE(随机微分方程)。
+
+#### 2. 网络预处理 (Preconditioning) —— EDM 的工程灵魂
+当 $\sigma$ 极大（纯噪声）或极小（接近原图）时，输入给神经网络 $F_\theta$ 的数据方差会剧烈波动，导致神经网络在极值两端极难训练。
+为此，EDM 引入了一套**尺度缩放(Scaling)机制**，将真正的预测模型 $D_\theta(x, \sigma)$ 包装成了如下形式：
+$$
+D_\theta(x, \sigma) = c_{\text{skip}}(\sigma)x + c_{\text{out}}(\sigma) F_\theta \big( c_{\text{in}}(\sigma)x, \, c_{\text{noise}}(\sigma) \big)
+$$
+- $c_{\text{in}}(\sigma) = \frac{1}{\sqrt{\sigma^2 + \sigma_{\text{data}}^2}}$：将带噪图像 $x$ 的方差强行缩放回 1，保证网络输入始终稳定。
+- $c_{\text{noise}}(\sigma) = \frac{1}{4} \ln(\sigma)$：将跨度极大的 $\sigma$ 转为对数尺度来输入网络，消除指数级波动，保证网络在不同噪声级别下的有平滑、一致的感知。
+  - 其中 乘以 $\frac{1}{4}$ 是为了让数值范围落在 **傅里叶特征映射（位置编码 Positional Encoding）** 的甜点区，本质是一种经验上推理出的缩放系数。
+- $c_{\text{skip}}(\sigma) = \frac{\sigma_{\text{data}}^2}{(\sigma^2 + \sigma_{\text{data}}^2)}$ 与 $c_{\text{out}}(\sigma) = \frac{\sigma \cdot \sigma_{\text{data}}}{\sqrt{\sigma^2 + \sigma_{\text{data}}^2}}$：动态调节残差连接。
+  - 当 $\sigma \to \infty$（全都是噪声）时，要求网络重点预测**去噪**结果。
+  - 当 $\sigma \to 0$ （快要清晰了）时，直接让输入 $x$ 通过 skip connection 透传，网络只负责**微调残差**。
+- **结果**：让内部的“裸”神经网络 $F_\theta$ 无论在什么噪声级别下，都能保持完美的**单位方差输入输出**，提高了模型训练的收敛速度和稳定性。
+
+#### 3. 损失函数 (Loss Function) 与 训练重心权重分配
+EDM 的目标依然是让模型预测出无噪的原图 $x_0$：
+$$
+\mathcal{L} = \mathbb{E}_{\sigma, x_0, \epsilon} \left[ \lambda(\sigma) \left|\left| D_\theta(x_0 + \sigma\epsilon, \sigma) - x_0 \right|\right|^2_2 \right]
+$$
+
+在这里，EDM 做了一个清醒的切割，即“**数学归数学，经验归经验**”：
+- **网络公平性 $\lambda(\sigma)$**：通过数学推导，EDM 令 $\lambda(\sigma) = \frac{1}{c_{\text{out}}^2(\sigma)}$，使网络 $F_\theta$ 在任何噪声级别下的损失权重都是均匀的（Effective weight = 1）。
+- **训练重心 $p(\sigma)$**：虽然对网络的要求是公平的，但人类视觉对“中等噪声级别”（即生成图像轮廓和核心细节的关键阶段）最敏感。因此，训练时 $\sigma$ 并不选择均匀采样的，而是服从一个**对数正态分布**（$\ln \sigma \sim \mathcal{N}(-1.2, 1.2^2)$），让模型把绝大部分训练倾注在最具决定性的生成阶段。
+
+#### 4. 生成过程：纯粹的 ODE 求解
+在 EDM 看来，**生成图像不再是所谓的“逆向马尔可夫采样”，而是一个纯粹的解 ODE 的过程。**
+根据得分匹配 (Score Matching) 理论，去噪过程可以写成一条由 $\sigma$ 主导的概率流常微分方程 (PF-ODE)：
+$$
+\frac{dx}{d\sigma} = - \sigma \cdot \nabla_x \log p(x; \sigma) = \frac{x - D_\theta(x, \sigma)}{\sigma}
+$$
+
+
+### 在 Flow Matching 的高度看 DDPM 和 EDM
+现在，我们站在 Flow Matching 的高度，再回头看扩散模型（Diffusion Models），会有一种“会当凌绝顶”的感觉。
+- **`DDPM` (2020)**：DDPM 本质上是通过随机微分方程 (SDE) 逐步加噪。如果我们只看它的“概率流常微分方程 (PF-ODE)”，DDPM 实际上也就是一条从数据走到噪声的轨迹。只不过，DDPM 定义的路径是**弯曲的**，并且加噪的速度是按某种特殊的非线性规则（如 cosine schedule）来的。Flow Matching 的理论证明了：**DDPM 只是 CFM 框架下，使用了特定高斯条件路径的一个特例。**
+- **`EDM` (2022)**：EDM **厘清了扩散模型的设计空间**，将网络架构、加噪时间表(Noise Schedule) 和 预处理 彻底解耦，强调了生成过程就是**解 ODE**。Flow Matching 可以说是 EDM 思想的终极演进——既然生成是解 ODE，我们何必非要模拟“物理扩散”的弯曲路径？我们完全可以直接设计最简单的直线 ODE！
+
+简而言之：**扩散模型是流匹配在弯曲路径上的特例，流匹配是扩散模型的泛化与升华。**
+
+## 6. 让生成更快更直：Reflow 与 蒸馏 (Distillation)
+用直线（Rectified Flow / OT-CFM）训练出来的模型，由于路径短、曲率小，通常用少量步数（比如 20-30 步 Euler 积分）就能生成高质量图像。但能不能更快？比如 **1 步生成**？
+
+为了实现这个目标，学者们提出了 **Reflow** 和 **蒸馏** 技术。
+1. **Reflow (重流)**：
+   在第一次训练完模型（1-Rectified Flow）后，虽然我们要求网络走直线，但因为初始配对 $(x_0, x_1)$ 是随机的，网络学到的全局 ODE 轨迹还是会有轻微的弯曲。
+   怎么让它变绝对笔直？
+   我们用**训练好的模型**，从随机噪声 $z_0$ 开始跑推理，生成对应的图片 $z_1$。这相当于记录下了模型自己找出的完美映射路径。然后，我们把这组确定的 $(z_0, z_1)$ 作为训练对，**再训练一次模型 (2-Rectified Flow)**。这时候由于映射是确定的，轨迹再也不会交叉，最终学到的路径会变得近乎完美笔直！
+2. **Distill (一步蒸馏)**：
+   当 ODE 的轨迹被 Reflow 拉成了完美的直线（常数速度），奇迹就发生了：$ \frac{dx}{dt} = \text{常数} $
+   这意味着，我们从时间 $t=0$ 跳到 $t=1$，根本不需要分成 30 步慢慢走，只需要进行 **一步欧拉积分 (1-step Euler)**：
+   $$
+   x_1 = x_0 + 1 \cdot v_\theta(x_0, 0)
+   $$
+   这就是一步生成的数学基础。基于这种特性的蒸馏技术，让我们能够在边缘设备上实现毫秒级的实时图像生成。
 
 ---
 
 # 参考文献：
-- 讲解：https://www.bilibili.com/video/BV1xFxMz1EMS
-- VAE：https://arxiv.org/abs/1312.6114
-- DDPM：https://arxiv.org/abs/2006.11239
-- EDM：https://arxiv.org/abs/2206.00364
-- CFM：https://arxiv.org/abs/2210.02747
+- 讲解视频：https://www.bilibili.com/video/BV1xFxMz1EMS
+1. VAE (2013)：https://arxiv.org/abs/1312.6114 
+2. DDPM (2020)：https://arxiv.org/abs/2006.11239 
+3. EDM (2022)：https://arxiv.org/abs/2206.00364 
+4. CFM (2022)：https://arxiv.org/abs/2210.02747
+5. Rectified Flow (2022)：https://arxiv.org/abs/2209.03003
