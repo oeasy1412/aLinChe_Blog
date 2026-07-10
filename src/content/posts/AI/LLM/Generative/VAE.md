@@ -317,7 +317,7 @@ $$
 $$
 即：$ \epsilon = - \sqrt{1 - \bar{\alpha}_t} \cdot \nabla_{x_t} \log q(x_t | x_0) $，DDPM 中神经网络预测的噪声 $\epsilon$，**在数学上就是一个只相差常数比例的`得分函数`！**
 
-### `EDM` (Elucidating the Design Space)
+### `EDM` (Elucidating the Design Space of Diffusion-Based Generative Models)
 - **核心思路**：在连续噪声级别 $\sigma$ 下，以求解一个确定性的概率流常微分方程 (ODE) 的视角，去生成图像。
 #### 1. 引入连续噪声谱 $\sigma$
 - **前向加噪**：定义为原图加上方差为 $\sigma^2$ 的高斯噪声：

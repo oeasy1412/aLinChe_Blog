@@ -305,10 +305,14 @@ https://github.com/oeasy1412/nixos_config/
 ```sh
 ## LTSC is all you need.
 https://next.itellyou.cn/Original/
+# winget install Yerong.OfficeToolPlus
 
 ## MAS
 https://massgrave.dev/
 irm https://get.activated.win | iex
+
+## Office
+irm https://officetool.plus | iex
 
 ## WSL2
 “控制面板”->“程序”->“启用或关闭Windows功能”中勾选“适用于 Linux 的 Windows 子系统”和“虚拟机平台”
@@ -1703,6 +1707,7 @@ BatteryInfoView
 Voicemeeter Banana
 ## 梯子
 Clash Verge
+# + 赔钱机场 https://xn--mes358aby2apfg.com/plan
 ## BT
 qBittorrent
 ## 浏览器
