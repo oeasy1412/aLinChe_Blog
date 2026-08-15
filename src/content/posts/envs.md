@@ -368,6 +368,17 @@ PS C:> Get-NetFirewallRule | Where-Object { $_.DisplayName -like '*clash*' -or $
 #     set -e all_proxy
 # end
 
+## 安装 scoop (如果是 LTSC)
+https://scoop.sh/
+
+## 安装 winget (如果是 LTSC)
+# https://github.com/microsoft/winget-cli/releases
+
+## 安装 Windows Terminal
+https://github.com/microsoft/terminal/releases
+# winget install --id=Microsoft.WindowsTerminal -e
+
+
 ## CMD 安装 clink
 winget install clink
 clink set autosuggest.inline true
@@ -1689,6 +1700,8 @@ OpenWrt
 OpenList
 ## 远程桌面
 Sunshine & Moonlight
+## 虚拟显示屏
+Virtual-Display-Driver
 ## 几个电脑之间文件同步
 Syncthing
 ## 软件卸载
