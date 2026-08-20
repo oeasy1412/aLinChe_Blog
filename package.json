@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
-    "@astrojs/cloudflare": "12",
+    "@astrojs/cloudflare": "^12.6.13",
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.3",
     "@astrojs/svelte": "7.2.5",
@@ -74,7 +74,7 @@
     "@types/sanitize-html": "^2.16.1",
     "postcss-import": "^16.1.1",
     "postcss-nesting": "^13.0.2",
-    "wrangler": "^4.107.0"
+    "wrangler": "^4.110.0"
   },
   "packageManager": "pnpm@9.14.4"
 }
