@@ -312,7 +312,9 @@ https://massgrave.dev/
 irm https://get.activated.win | iex
 
 ## Office
+https://www.officetool.plus/zh-cn/
 irm https://officetool.plus | iex
+# ospp/unlics /unkeys /inslicid MondoVolume /sethst kms.loli.best /setprt 1688 /act
 
 ## WSL2
 “控制面板”->“程序”->“启用或关闭Windows功能”中勾选“适用于 Linux 的 Windows 子系统”和“虚拟机平台”
@@ -370,6 +372,11 @@ PS C:> Get-NetFirewallRule | Where-Object { $_.DisplayName -like '*clash*' -or $
 
 ## 安装 scoop (如果是 LTSC)
 https://scoop.sh/
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+
+scoop bucket add extras
+scoop install windows-terminal -g
 
 ## 安装 winget (如果是 LTSC)
 # https://github.com/microsoft/winget-cli/releases
@@ -382,6 +389,9 @@ https://github.com/microsoft/terminal/releases
 ## CMD 安装 clink
 winget install clink
 clink set autosuggest.inline true
+
+## 安装 vim
+winget install Vim.Vim  # 配置文件在 _vimrc
 ```
 
 
@@ -810,6 +820,9 @@ pnpm config get registry
 # 清理 npm 和 pnpm 未引用的包
 npm cache verify # npm cache clean --force
 pnpm store prune
+
+# 查看 npm 安装了哪些东西
+npm ls -g 
 ```
 
 
@@ -1361,7 +1374,7 @@ Host myHand
   User u0_a118 # 请替换为Termux中`whoami`命令返回的用户名
   ServerAliveInterval 60
   ServerAliveCountMax 3
-  IdentityFile C:\Users\Name\.ssh\myHand_id_rsa # 使用密钥认证(推荐)
+  IdentityFile C:\Users\Name\.ssh\myHand_id_rsa # 使用密钥认证(推荐) # ssh-keygen -t rsa -b 4096 -C ""
 
 # 保活
 # 手机管家->应用启动管理->Termux->允许自启动、允许后台运行
@@ -1437,6 +1450,59 @@ nmcli connection show
 cat /proc/net/wireless
 sudo nmcli connection up "Wifi名称SSID"
 ```
+
+## Incus
+```sh
+
+```
+### Incus Windows
+```sh
+nix-shell -p rsync
+
+WIN_ISO=/home/username/ISO/zh-cn_windows_11_enterprise_ltsc_2024_x64_dvd_cff9cd2d.iso
+VIRTIO_ISO=/home/username/ISO/virtio-win.iso
+
+incus init win11-rdp --empty --vm
+incus config set win11-rdp limits.cpu=8 limits.memory=16GiB
+incus config device override win11-rdp root size=80GiB io.bus=nvme
+
+incus config device add win11-rdp tpm tpm path=/dev/tpm0
+
+incus config set win11-rdp security.secureboot=false
+incus config device add win11-rdp win-iso disk source="$WIN_ISO" io.bus=usb boot.priority=10 readonly=true
+incus config device add win11-rdp virtio-iso disk source="$VIRTIO_ISO" io.bus=usb readonly=true
+
+incus start win11-rdp --console  # 狂按  Enter 从 USB 设备（Windows ISO）启动
+
+# 正常断网安装Windows
+start D:\  # 找到并双击运行 virtio-win-guest-tools.exe 安装驱动
+
+## RDP
+Set-ItemProperty 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name fDenyTSConnections -Value 0
+Enable-NetFirewallRule -DisplayGroup "远程桌面"  # 防火墙放行
+# Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+netstat -an | findstr 3389
+
+VMIP=$(incus list win11-rdp --format csv -c 4 | cut -d' ' -f1)
+incus config device override win11-rdp eth0 ipv4.address=VMIP
+incus config device add win11-rdp rdp proxy \
+  listen=tcp:HOSTIP:3389 \
+  connect=tcp:VMIP:3389 \
+  nat=true
+
+## SSH
+Add-WindowsCapability -Online -Name OpenSSH.Server
+Start-Service sshd
+Set-Service -Name sshd -StartupType 'Automatic'
+
+net user usernamessh password /add
+
+# 清理
+incus config device remove win11-rdp win-iso
+incus config device remove win11-rdp virtio-iso
+```
+
+
 
 ## OpenVPN
 ```sh

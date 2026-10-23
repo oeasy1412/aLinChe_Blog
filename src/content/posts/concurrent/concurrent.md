@@ -20,69 +20,110 @@ draft: false
 #include <functional>
 #include <iostream>
 #include <mutex>
+#include <queue>
 #include <thread>
 #include <vector>
 
 #define NTHREAD 64
-enum ThreadStatus { T_FREE = 0, T_LIVE, T_DEAD };
+enum ThreadStatus { IDLE = 0, BUSY, EXITING };
 
 struct Thread {
     int id;
     std::atomic<int> status;
     std::thread thread;
-    std::function<void(int)> entry;
 };
 
 class ThreadPool {
   private:
     std::vector<Thread> threads;
-    std::vector<std::function<void(int)>> task_queue;
+    std::queue<std::function<void(int)>> task_queue;
     std::mutex mtx;
     std::condition_variable cv;
     bool stop = false;
 
   public:
-    ThreadPool() : threads(NTHREAD) {
-        // 预先启动所有线程，等待任务
-        for (int i = 0; i < NTHREAD; ++i) {
-            threads[i].id = i + 1;
-            threads[i].status.store(T_LIVE);
-            threads[i].thread = std::thread([this, i]() {
-                while (true) {
-                    std::unique_lock<std::mutex> lock(this->mtx);
-                    this->cv.wait(lock, [this]() { return !this->task_queue.empty() || this->stop; });
-                    if (this->stop && this->task_queue.empty()) {
-                        break;
+    explicit ThreadPool(int thread_count = NTHREAD) : threads(thread_count > 0 ? thread_count : 0) {
+        try {
+            // 预先启动所有线程，等待任务
+            for (int i = 0; i < thread_count; ++i) {
+                threads[i].id = i + 1;
+                threads[i].status.store(IDLE, std::memory_order_release);
+                threads[i].thread = std::thread([this, i]() {
+                    while (true) {
+                        std::unique_lock<std::mutex> lock(this->mtx);
+                        this->cv.wait(lock, [this]() { return !this->task_queue.empty() || this->stop; });
+                        if (this->stop && this->task_queue.empty()) {
+                            threads[i].status.store(EXITING, std::memory_order_release);
+                            break;
+                        }
+                        if (!this->task_queue.empty()) {
+                            auto task = std::move(this->task_queue.front());
+                            this->task_queue.pop();
+                            threads[i].status.store(BUSY, std::memory_order_release);
+                            lock.unlock();
+                            try {
+                                task(threads[i].id);
+                            } catch (const std::exception& e) {
+                                std::cerr << "task exception: " << e.what() << '\n';
+                            } catch (...) {
+                                std::cerr << "task unknown exception\n";
+                            }
+                            threads[i].status.store(IDLE, std::memory_order_release);
+                        }
                     }
-                    if (!this->task_queue.empty()) {
-                        auto task = this->task_queue.front();
-                        this->task_queue.erase(this->task_queue.begin());
-                        lock.unlock();
-                        task(threads[i].id);
-                        threads[i].status.store(T_FREE);
-                    }
-                }
-            });
+                });
+            }
+        } catch (...) {
+            shutdown();
+            join();
+            throw;
         }
     }
 
-    void create(const std::function<void(int)>& fn) {
-        std::lock_guard<std::mutex> lock(mtx);
-        task_queue.push_back(fn);
+    ~ThreadPool() {
+        shutdown();
+        join();
+    }
+
+    ThreadPool(const ThreadPool&) = delete;
+    ThreadPool& operator=(const ThreadPool&) = delete;
+    ThreadPool(ThreadPool&&) = delete;
+    ThreadPool& operator=(ThreadPool&&) = delete;
+
+    void enqueue(std::function<void(int)> fn) {
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            if (stop)
+                throw std::runtime_error("ThreadPool is stopped");
+            task_queue.emplace(std::move(fn));
+        }
         cv.notify_one();
     }
 
-    void join() {
-        stop = true;
+    void shutdown() noexcept {
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            stop = true;
+        }
         cv.notify_all();
+    }
+    void shutdown_now() noexcept {
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            stop = true;
+            std::queue<std::function<void(int)>> empty;
+            std::swap(task_queue, empty);
+        }
+        cv.notify_all();
+    }
+
+    void join() {
         for (auto& thread : threads) {
             if (thread.thread.joinable()) {
                 thread.thread.join();
             }
         }
     }
-
-    ~ThreadPool() { join(); }
 };
 ```
 
@@ -102,59 +143,72 @@ atomic_flag flag = ATOMIC_FLAG_INIT;
 
 void Tsum(int id) {
     for (int i = 0; i < N; ++i) {
-        // sum++;
+        // sum++;  // Racing (<200000)
         sum.fetch_add(1, std::memory_order_relaxed); // atomic_fetch_add(&sum, 1);
     }
 }
 int main() {
     ThreadPool tpool;
-    tpool.create(Tsum);
-    tpool.create(Tsum);
-    this_thread::sleep_for(chrono::seconds(1));
+    tpool.enqueue(Tsum);
+    tpool.enqueue(Tsum);
+    tpool.shutdown();
+    tpool.join();
     cout << "sum = " << sum << "\n";
     cout << "end\n";
 }
 ```
 ### std::atomic 内存序 
-> memory_order_relaxed ：最弱的内存序，仅保证基本的原子性，没有额外的内存同步语义。
+- memory_order_relaxed ：最弱的内存序，仅保证基本的原子性，没有额外的内存同步语义。
 
-> memory_order_consume ：用于消费操作(consume operation)，确保后续的操作不会被重排序到该操作之前。用于后续操作依赖于该操作的结果。
+- memory_order_consume ：用于消费操作(consume operation)，确保后续的操作不会被重排序到该操作之前。用于后续操作依赖于该操作的结果。
 
-> memory_order_acquire ：用于获取操作(acquire operation)，通常用于读取共享变量，确保后续的操作不会被重排序到该获取操作之前，提供了一种从发布-获取同步模型中的获取操作的语义。
+- memory_order_acquire ：用于获取操作(acquire operation)，通常用于读取共享变量，确保后续的操作不会被重排序到该获取操作之前，提供了一种从发布-获取同步模型中的获取操作的语义。
 
-> memory_order_release ：用于释放操作(release operation)，通常用于写入共享变量，确保之前的操作不会被重排序到该释放操作之后，为后续的获取操作提供一种同步点。
+- memory_order_release ：用于释放操作(release operation)，通常用于写入共享变量，确保之前的操作不会被重排序到该释放操作之后，为后续的获取操作提供一种同步点。
 
-> memory_order_acq_rel ：结合了 acq 和 rel 的语义，用于读写操作，既确保之前的写操作不会被重排序到该操作之后，也确保后续的读操作不会被重排序到该操作之前。
+- memory_order_acq_rel ：结合了 acq 和 rel 的语义，用于读写操作，既确保之前的写操作不会被重排序到该操作之后，也确保后续的读操作不会被重排序到该操作之前。
 
-> memory_order_seq_cst ：最强的内存序，提供顺序一致性(sequentially consistent)的保证，确保所有线程中的操作都按照全局的顺序执行。
-### CAS 比较并交换 (Compare-And-Swap)
+- memory_order_seq_cst ：最强的内存序，提供顺序一致性(sequentially consistent)的保证，确保所有线程中的操作都按照全局的顺序执行。
+### x86: CAS 比较并交换 (Compare-And-Swap)
 ```cpp
-if (!global_var.compare_exchange_strong(expected_val, new_val, std::memory_order_acq_rel)) {}
+// 
+if (!global_var.compare_exchange_strong(expected_val, new_val, std::memory_order_acq_rel, std::memory_order_relaxed)) {}
 ```
-### LR/SC 加载保留 (Load-Reserve) / 条件存储 (Store-Conditional)
+
+### RISC-V / ARM: LR/SC 加载保留 (Load-Reserve) 条件存储 (Store-Conditional)
 ```cpp
-atomic<int> global_var(0);
-atomic<bool> sc_failed(false);
-void LR_SC() { // Load-Reserved && Store-Conditional
-    int expected_val;
+// 下面模拟 LR/SC 的语义
+std::atomic<int> global_var(0);
+void LR_SC() {
+     // Load-Reserved
+    int expected_val = global_var.load(std::memory_order_relaxed);
     while (true) {
-        expected_val = global_var.load(std::memory_order_relaxed); // Load-Linked
         int new_val = expected_val + 1;
         // Store-Conditional
-        if (!global_var.compare_exchange_strong(expected_val, new_val, std::memory_order_acq_rel)) {
-            sc_failed.store(true, std::memory_order_relaxed);
+        if (global_var.compare_exchange_weak(expected_val, new_val, std::memory_order_acq_rel, std::memory_order_relaxed)) {
             break;
+        } else {
+            std::cout << "sc_failed\n"; // SC 因为 reservation 丢失而返回失败，继续循环
         }
-        // 如果 Store-Conditional 成功，继续循环
     }
 }
 ```
+
+### 补充说明
+```cpp
+// C++标准库的函数原型 (默认内存序为 seq_cst)
+bool compare_exchange_weak(T& expected, const T desired, const std::memory_order success, const std::memory_order failure);
+bool compare_exchange_strong(T& expected, const T desired, const std::memory_order success, const std::memory_order failure);
+```
+-  compare_exchange_strong 在值相等时是否保证成功，weak可能会伪失败。无论哪种，只要失败就会把expected的值更新为第二次看到的。
+    - x86: compare_exchange_weak 和 compare_exchange_strong 生成完全相同的机器码，即 `lock cmpxchg`
+    - RISC-V / ARM: weak 映射为一次 LR/SC 尝试，strong 映射为 LR/SC 循环。 LR 会在硬件上建立一个 reservation，任何可能导致 reservation 丢失的事件都会让 SC 失败，如其他核写了同一缓存行、缓存行被踢出、中断、异常、上下文切换、DMA等等。compare_exchange_weak伪失败指的就是这个expected值没变但 reservation 丢失而返回了false。
 
 ## 2. lock 锁
 ### 自旋锁 (Spinlock)
 ```cpp
 inline void spin_lock(std::atomic_flag& lock_flag) {
-    while (lock_flag.test_and_set(std::memory_order_acquire)) { // CAS
+    while (lock_flag.test_and_set(std::memory_order_acquire)) { // TAS
         // 自旋等待，直到锁被释放
     }
 }
@@ -170,7 +224,7 @@ inline void mutex_unlock(std::mutex* lk) { lk->unlock(); }
 ## 3. cv 条件变量 (Condition Variable)
 ### 0. 传统教科书用户态cv条件变量实现：
 ```cpp
-// 传统教科书“错误”的结构
+// 传统教科书的“错误”结构
 struct pthread_cond_t {
     atomic_int  __lock; // 内部自旋锁（CAS 0/1/2分别代表无锁、有锁、有锁且有等待者）
     unsigned int   __total_seq;    // 总等待序列号​​计数器：“挂号”
@@ -216,22 +270,22 @@ int futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset);
 ### 1. Linux中标准cv条件变量实现
 ```c
 struct __pthread_cond_s {
-    // 64位无锁状态字：高位为序列号，最低位为组索引(Index)
+    // 64位无锁状态字：高位为序列号，最低位为`组索引`(Index)
     unsigned long long __wseq;     // 其实是 __atomic_wide_counter 类型，用 union 包一层的计数器
     // g1 组的起始序列号
     unsigned long long __g1_start; // 其实是 __atomic_wide_counter 类型
-    unsigned int __g_refs[2] __LOCK_ALIGNMENT;
-    unsigned int __g_size[2];    // 引用计数
-    unsigned int __g1_orig_size;
+    unsigned int __g_refs[2] __LOCK_ALIGNMENT; // 高位为引用计数值，最低位为`组关闭标志`
+    unsigned int __g_size[2];      // 未被叫号的等待者 Waiter 数量
+    unsigned int __g1_orig_size;   // G1 的大小，G2 的起点
     unsigned int __wrefs;
-    unsigned int __g_signals[2]; // 两个独立的 Futex 变量
+    unsigned int __g_signals[2];   // 两个独立的 Futex 变量
 };
 ```
 - **`完美的 Broadcast 语义`**：Linux 的 `pthread_cond_t` 实现支持高效的广播唤醒（`pthread_cond_broadcast`），通过 `__g1_start` 和 `__g_signals` 计数器来管理多个等待线程的唤醒，确保所有等待线程都能被正确唤醒。
   * 在旧的单队列实现中，在唤醒线程的过程中，突然有一个线程调用了 futex_wait 进来了，他不应该被本次Broadcast唤醒影响到，但是单队列难以处理。
   * `__g1_start` 记录了 g1 组的起始序列号，用于界定哪批线程属于当前广播的目标。
   * `__g_refs[2]` 分别记录两个组里当前有多少活跃 Waiter 引用计数，`__g_size[2]` 这两个组的实际线程数目。
-  * `__g1_orig_size` 判断是否清空g1组。
+  * `__g1_orig_size` G1 的大小，G2 的起点。判断是否清空g1组。
   * `__g_signals[2]` 这是两个独立的 **Futex 变量**。
 
 - **`分组逻辑`**：u64 的 **最低位** 用来区分两个组（group 0 和 group 1），通过 `__g1_start` 来标记当前活跃的组。
@@ -339,9 +393,22 @@ void Tconsumer(int id) {
     }
 }
 
-int np = 2, nc = 3;
+constexpr int np = 2, nc = 3;
 thread producers[np];
+for (int i = 0; i < np; ++i) producers[i] = thread(Tproducer, i);
 thread consumers[nc];
+for (int i = 0; i < nc; ++i) consumers[i] = thread(Tconsumer, i);
+
+for (auto& p : producers) p.join();
+cout << "All producers joined\n";
+{
+    lock_guard<mutex> lock(mtx);
+    done = true;
+}
+cv.notify_all();
+for (auto& c : consumers) c.join();
+cout << "Done!\n";
+
 ```
 
 ## 5. 信号量 Semaphore
