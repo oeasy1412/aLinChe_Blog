@@ -2,8 +2,8 @@
 title: CSAPP-attack-lab
 published: 2025-09-19
 description: 自制attack-lab
-tags: [gdb, Lab, CSAPP]
-category: 调试工具
+tags: [CPU, cpp, gdb, Lab, CSAPP]
+category: CPU
 draft: false
 ---
 亲手制作一个经典的缓冲区溢出(Buffer Overflow)攻击案例。这篇博文将为你讲清楚整个攻击的原理，以及几个关键概念：`RSP`（栈指针）、`gets()` 函数的危险性、金丝雀(`Canary`)、PIE (`Position-Independent Executable`) 和 W^X (`Write XOR Execute`)。

@@ -2,7 +2,7 @@
 title: Barrier
 published: 2025-04-16
 description: Memory Barrier
-tags: [OS, CPU, 并发, 内存管理, cache, 编译原理, cpp]
+tags: [OS, CPU, cpp, 并发, 内存管理, cache, 编译原理, perf]
 category: 并发
 draft: false
 ---
@@ -17,26 +17,30 @@ draft: false
 **一个经典的例子：（常见于嵌入式）**
 ```cpp
 // done 变量可能被硬件、中断服务程序或其他线程修改
-// volatile 确保编译器每次循环都会重新从内存加载 done 的值，而不是在寄存器中不断读取
+// volatile 确保编译器每次循环都会重新从**内存**中加载 done 的值，而不是在**寄存器**中不断读取
 volatile bool done = false; 
 while (!done) {
     // 等待 done 变为 true
 }
 ```
 
-**`volatile` 的局限性：**
+*   **`volatile` 的局限性：**
 关键在于，`volatile` **仅对编译器**有效，它**无法限制 CPU 的乱序执行(Out-of-Order Execution)**。现代 CPU 为了最大化提升性能，可能会对内存操作进行重排序。因此，`volatile` **不能提供跨线程的内存可见性和顺序性的同步保证，也不能保证操作的原子性**。在多线程编程中，单独使用 `volatile` 来保证共享变量的可见性和顺序性是**错误且危险**的。
+
 #### **澄清：volatile 无法解决数据竞争**
 在 C++ 标准中，当多个线程访问同一个非原子变量，并且至少有一个是写操作(副作用)时，就会产生**数据竞争(Data Race)**，而数据竞争的后果是**未定义行为(UB, Undefined Behavior)**。
-volatile其实无法解决 Racing 问题。它既不能保证操作的原子性（例如，一个线程正在写一个 `volatile` 变量时，另一个线程可能读到一半的值），也不能提供跨线程的内存顺序保证。因此，它无法消除数据竞争，也就无法避免未定义行为。
+
+volatile 其实无法解决 Racing 问题。它既不能保证操作的原子性（例如，一个线程正在写一个 `volatile` 变量时，另一个线程可能读到一半的值），也不能提供跨线程的内存顺序保证。因此，它无法消除数据竞争，也就无法避免未定义行为。
 
 #### 经典示例
-1. 假设有两个线程 A 和 B，以及两个共享变量 x 和 y（初始为 0）。A:写x=1; r1=y; B:写y=1; r2=x;。正常思路会认为 r1 和 r2 至少有一个会为 **1**。但在真实的现代CPU，是完全可能出现r1和r2均为0的情况。
-   -  这是由于 写缓存(Store Buffer) 或 指令乱序执行 导致的：
+1. 假设有两个线程 A 和 B，以及两个初始为0的共享变量 x 和 y。A:“写x=1; r1=y;” B:“写y=1; r2=x;”。正常思路会认为 r1 和 r2 至少有一个会为 **1**。但在真实的现代CPU，是完全可能出现r1和r2均为0的情况。
+   -  这是由于 写缓存(Store Buffer) 或 指令乱序执行 导致的！
 2. 单例模式中的双重检查锁定(Double-Checked Locking)问题：
-> new Singleton(); 可以拆分为 allocate() + 构造函数初始化 + 将instance引用指向刚分配的内存地址
+> new Singleton(); 可以拆分为: allocate() + 构造函数初始化 + 将instance引用指向刚分配的内存地址
+
 编译器或CPU为了优化，可能会交换 步骤2 和 步骤3 的顺序（因为初始化很可能是一个较慢的操作），导致另一个线程在 instance 尚未完全初始化时就发现(instance != null)能访问单例了，进而引发未定义行为。
 ```java
+// 注意：这是 Java 的正确示例，是 Java 语义下的 volatile
 public class Singleton {
     private Singleton() {}
     private static volatile Singleton instance;
@@ -55,12 +59,14 @@ public class Singleton {
 
 
 ### **2. atomic = 原子操作 + 内存顺序: 现代并发编程的基石**
-为了解决 `volatile` 的局限性，C++11 标准引入了原子操作(`std::atomic`)和内存顺序(`std::memory_order`)。
+为了解决 `volatile` 的局限性，C++11 标准引入了原子操作(`std::atomic`) 和 内存顺序(`std::memory_order`)。
 *   **原子性 (Atomicity)**：保证一个操作（如读、写、修改）在执行过程中不会被其他线程中断。它要么完全执行，要么完全不执行，不存在中间状态。这是通过特殊的 CPU 指令（如 x86 的 `LOCK` 前缀）实现的。
 *   **内存顺序 (Memory Ordering)**：定义了原子操作如何影响其他内存操作的可见性顺序，即构造一个事件的“发生在…之前”(happens-before) 的关系，从而限制编译器和 CPU 的乱序行为。
+
 std::atomic 有两个功能：原子 & 内存序
+
 **原则：**
-> 大多数变量无需是原子的。只有当一个变量可能被多个线程同时访问，且至少有一个访问是写操作时，才必须将其声明为原子类型。这能帮助编译器和 CPU 精确地知道哪些内存访问需要特别保护，从而在保证并发安全的同时，最大化对其他代码的优化。
+> 大多数变量无需是原子的。只有当一个变量可能被多个线程同时访问，且至少有一个访问是写操作时，才必须将其声明为原子类型。这能帮助编译器和 CPU 精确地知道哪些内存访问需要特别保护，从而在保证并发安全的同时，最大化对其他代码的进行优化。
 
 
 ### **3. 内存屏障(Memory Barrier)：显式控制乱序**
@@ -89,24 +95,26 @@ __sync_synchronize();
 ### **4. 内存序 `std::memory_order`** (重点)
 内存顺序是 C++ 并发编程中最精细也最复杂的工具，它允许程序员根据具体场景选择不同强度的同步保证，以实现性能和正确性之间的最佳平衡。
 *   `memory_order_relaxed`：**宽松序**。 这是最弱的内存序，仅保证操作的原子性，不提供任何跨线程的顺序保证。没有额外的内存同步语义，允许指令自由重排（与架构有关）。
-*   `memory_order_acquire`：**获取序**。 通常用在读操作上。它建立了一个“获取屏障”，**禁止该操作之后的所有内存操作被重排到该操作之前**。它必须与一个 `release` 操作配对，以观察其写入的数据。
+*   `memory_order_acquire`：**获取序**。 通常用在读操作上。它建立了一个“获取屏障”，**禁止该操作之后的所有内存操作被重排到该操作之前**。它须与一个 `release` 操作配对，以观察其写入的数据。
 *   `memory_order_release`：**释放序**。 通常用在写操作上。它建立了一个“释放屏障”，**禁止该操作之前的所有内存操作被重排到该操作之后**。所有在 `release` 操作之前发生的写操作，对于之后执行相应 `acquire` 操作的线程都是可见的。
 *   `memory_order_acq_rel`：**获取-释放序**。 同时具备 `acquire` 和 `release` 的特性，通常用于“读-修改-写”类型的操作。它既能“获取”其他线程 `release` 的数据，又能向其他线程 `release` 自己的写入。
-*   `memory_order_consume`：**消费序**。这是一个与 `acquire` 类似的较弱版本，仅对存在依赖关系的操作施加顺序限制。由于其复杂性和实现难度，目前主流编译器通常会将其提升为 `memory_order_acquire` 对待，因此在实践中较少使用。
 *   `memory_order_seq_cst`：**顺序一致性**。 这是最强的内存序，也是默认的内存序。它不仅提供 `acquire` 和 `release` 的保证，还确保所有线程看到的 `seq_cst` 操作都遵循一个单一的、全局的总顺序。 这意味着不会出现“凭空加载”(out-of-thin-air reads) 等现象，但性能开销也最大。
+*   (已弃用) memory_order_consume：**消费序**。这是一个与 `acquire` 类似的较弱版本，仅对存在依赖关系的操作施加顺序限制。由于其复杂性和实现难度，C++ 标准委员会已经事实上暂停/弃用了，目前主流编译器通常会将其提升为 `memory_order_acquire` 对待，因此在实践中较少使用。
 
 显然，memory_order是有性能开销的：
 #### 深度解析：C++内存序 与 CPU缓存架构 的性能博弈
-CPU核心的缓存子系统: 从硬件层面剖析`std::memory_order`不同选项如何与**存储缓冲区**(`Store Buffer`)**、无效化队列**(`Invalidate Queue`)等机制交互，从而揭示其性能开销的根源。
+CPU核心 的 缓存子系统: 从硬件层面剖析`std::memory_order`不同选项如何与**存储缓冲区**(`Store Buffer`)**、无效化队列**(`Invalidate Queue`)等机制交互，从而揭示其性能开销的根源。
 ##### 核心前提：现代CPU的性能优化与乱序执行
 为隐藏内存访问延迟，现代CPU普遍采用**多级缓存**、**乱序执行(Out-of-Order Execution)** 和**存储转发(Store-to-load forwarding)** 等优化手段。其中两个关键组件是：
 *   **存储缓冲区(Store Buffer)**：当一个CPU核心执行写操作时，数据被临时置于此缓冲区，核心可立即执行后续指令，无需等待数据写入L1缓存。这极大地隐藏了写延迟。
 *   **无效化队列(Invalidate Queue)**：当一个核心修改了其缓存中的数据后，它会通过缓存一致性协议（如MESI）向其他核心广播“无效化”消息。其他核心接收到消息后，会将其放入无效化队列，并在适当时机处理，以避免阻塞当前正在执行的指令。
 
-> `Store Buffer`示例：Core-A想修改(‘Write’)一个Core-B的缓存中‘Shared’的数据，但Core-A不想向总线发送无效化信息然后一直等待Core-B的确认。它直接把要写的数据扔进自己的**Store Buffer**，然后立刻继续执行下一条指令。等到Core-B终于回了确认，Core-A再在后台把Store Buffer里的数据真正写入L1 Cache。
-> 副作用：`Store-Load` 乱序。Core-A自己能从Store Buffer里读到最新的值，但其他核心（Core-B）完全看不到Core-A刚才的写操作，直到数据从Store Buffer刷入Cache。
-> `Invalidate Queue`示例：Core-B收到了Core-A发来的Invalidate消息。按照协议，它应该立刻把自己的Cache Line设为Invalid并回执。但如果Core-B正忙，处理这个消息会打断流水线。于是，Core-B把这个消息扔进**Invalidate Queue**，立马给Core-A回个“收到”，然后继续干自己的事。
-> 副作用：`Load-Load` 乱序。Core-B虽然承诺了“我会把这个缓存行无效化”，但它还没来得及做。此时Core-B去读这个变量，读到的依然是Cache里的旧值（Stale Data），尽管它名义上已经收到了无效化通知。
+> `Store Buffer`示例：Core-A想修改(‘Write’)一个Core-B的缓存中‘Shared’的数据，但Core-A不想向总线发送无效化信息然后一直等待Core-B的确认。于是它直接把要写的数据扔进自己的**Store Buffer**，然后立刻继续执行下一条指令，等以后Core-B终于回了确认，Core-A把 Store Buffer 里的数据真正写入 L1 Cache。
+> 副作用：`Store-Load` 乱序。Core-A自己能从自己的 Store Buffer 里读到最新的值，保证单线程语义不变，但其他核心（Core-B）完全看不到Core-A刚才的写操作，直到数据从Core-A的 Store Buffer 刷入 Cache。
+> x86 的 Store Buffer 是 **FIFO**，ARM 的 Store Buffer 不保证 FIFO。所以 ARM 下 会导致 StoreLoad/StoreStore 乱序。
+
+> `Invalidate Queue`示例：Core-B收到了Core-A发来的 Invalidate消息。按照 MESI 协议，它应该立刻把自己的 Cache Line 设为 Invalid 并 回执。但如果Core-B正忙，处理这个消息会打断流水线。于是，Core-B把这个消息扔进**Invalidate Queue**，立马给Core-A回个“收到”，然后继续干自己的事。
+> 副作用：ARM 下 会导致 `Load-Load` 乱序。Core-B虽然承诺了“我会把这个缓存行无效化”，但它还没来得及做。此时Core-B去读这个变量，读到的依然是Cache里的旧值（Stale Data），尽管它名义上已经收到了无效化通知。
 
 #### std::memory_order 如何与这些硬件“打架”
 这些优化虽然提升了单核性能，却打破了程序代码顺序与实际执行顺序的一致性，为多线程编程带来了挑战。
@@ -124,13 +132,17 @@ CPU核心的缓存子系统: 从硬件层面剖析`std::memory_order`不同选�
 
 下面我们具体分析每种内存序与硬件交互的细节：
 ##### 0. 普通变量：完全无约束非原子变量
-普通变量的读写，编译器可能会进行非常激进的优化，比如将变量长时间保留在寄存器中，根本不写回缓存，从而导致其他线程完全无法观察到其变化。
+普通变量的读写，编译器可能会进行**非常激进的优化**，比如将变量长时间保留在寄存器中，根本不写回缓存，从而导致其他线程完全无法观察到其变化。
 ##### 1. `memory_order_relaxed`：无约束的原子执行
 `relaxed`内存序仅确保操作的原子性，即不会发生指令撕裂。它对编译器和CPU的乱序执行不施加任何额外的限制。
 *   **硬件交互**：
     *   **写操作**(`store`): 一个`relaxed`写操作会将其值放入当前核心的**存储缓冲区**，CPU流水线可以无缝地继续执行后续指令，直到缓存系统准备好（例如，获得了对应Cache Line的独占权），再异步地被刷新到L1缓存。该值何时被刷新到L1缓存并对其他核心可见，是不确定的。（但这也正是relaxed操作几乎无额外开销的原因）
     *   **读操作**(`load`): 一个`relaxed`读操作可以从本地缓存、甚至直接从存储缓冲区（若发生Store-to-load forwarding）获取数据。它不会等待其他核心的更新。
     *   **结论**：此模型完全拥抱CPU的缓存和乱序优化，只保证自身原子性，几乎没有额外开销，但无法用于线程间的状态同步。
+
+> P.S. 在 x86 等强内存模型架构上，读写操作(load/store)，对于自然对齐且大小在总线/架构支持范围内的单个内存操作，CPU硬件本身就保证其读写的原子性，因此编译器会生成 `MOV` 指令，而不产生任何屏障；
+> 读改写操作(RMW, 如fetch_add)，为了在硬件层面保证“读-改-写”作为一个不可分的整体，在 x86 上，编译器会为其生成带 `LOCK` 前缀的指令来保证原子性(如 LOCK ADD)，锁定对应的缓存行，防止其他核心同时修改；
+
 ##### 2. `memory_order_acquire` / `memory_order_release`：定向的同步信道
 这对内存序是实现高效线程间同步的关键。它们必须配对使用，共同在生产者和消费者线程之间建立明确的“先行发生（Happens-Before）”关系。
 *   **硬件交互**：
@@ -214,7 +226,7 @@ struct SpinMutex {
     void lock() {
         bool expected = false;
         while (!flag.compare_exchange_weak(expected, true, std::memory_order_acquire, std::memory_order_relaxed))
-            expected = false; // 因为STD的CAS中 weakCAS失败后会把传入的引用(expected)修改，只能手动赋值为false重置。。。
+            expected = false; // 因为“C++ 标准的 CAS 操作在失败时会把传入的引用(expected)修改，只能手动赋值为false重置。。。
         // load barrier
     }
     void unlock() {
@@ -267,6 +279,12 @@ struct SpinMutex {
 - Q: 性能动机: 为什么强内存模型的x86不允许各种重排，却“独爱”StoreLoad重排，允许了它的存在？
   - A: 核心在于写操作Store的延迟远高于读操作Load。当一个CPU核心要写入一个内存地址时，它必须首先通过缓存一致性协议（如MESI）获得该地址所在缓存行(Cache Line)的独占所有权(Exclusive)。这个过程可能非常耗时：对非独占的缓存行，此核心必须发送“读取并无效化”(**Read For Ownership**)的请求，等待其他核心将缓存行失效并把最新数据发送过来；甚至cache miss导致要从主存中加载，延迟更高。导致整个执行流水线都必须停顿！
   - `Store-Load`重排的实际流程：不等待直接将“STORE x, 数据”这个写操作放入**存储缓冲区**，然后**立即**继续执行下一条指令。执行Load指令。此时，内存控制器并行地在后台缓慢地处理存储缓冲区中的写请求，以及Load指令的读请求，实现对高延迟的写操作“异步化”。
+
+### **7. 伪共享：MESI 乒乓的隐形税**
+我们知道 所有权读取 RFO (Read For Ownership) 代价高。伪共享(False Sharing)就是从程序员的软件视角来看，多个线程压根没共享同一个变量，但在 CPU 的物理硬件视角看来，它们偏偏“共享”了同一条 Cache Line ——每次写都会把对方的 Cacheline 打回 Invalid，在硬件层面总线事务与真共享毫无区别，纯纯白开销。
+
+- `alignas(64)` 让每个计数器独占一条 cache line；
+- 怀疑伪共享时，用 `perf c2c` 精确定位：HITM (Hit In The Modified，本核读到的 line 刚被别的核写过) 占比 >10% 即可确诊。
 
 ### **总结**
 *   **`volatile`**：用于与内存映射的硬件交互或在信号处理程序中使用（如：嵌入式），**不用于线程间同步**。
