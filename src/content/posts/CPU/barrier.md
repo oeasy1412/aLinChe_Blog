@@ -77,19 +77,100 @@ std::atomic 有两个功能：原子 & 内存序
 ```cpp
 // 告诉编译器，内存中的所有内容都可能已改变
 // 禁止编译器将屏障前的内存读写指令重排到屏障后，反之亦然
-asm volatile("" ::: "memory");
+// 并让屏障后的内存读取操作 要重新从内存加载。
+asm volatile("" ::: "memory"); // 这个是一个 GCC 扩展语句，在 GCC 中类似等价于 std::atomic_signal_fence(std::memory_order_seq_cst);
+```
+```cpp
+// 信号处理函数中的 编译器屏障
+// 因为信号是“同一个线程中突然插进来的一段代码。编译器在编译时根本不知道信号什么时候会来、这段代码会插在哪儿，于是它很可能会做出各种“自以为是”的优化。
+// 经典之 while (!flag) { do_something(); } 编译器发现循环的函数中 flag 又没被修改过，把 flag 塞进寄存器里读，省得反复访问内存了！
+// 当 order 为 seq_cst 时生成全功能编译器屏障，对于 C++标准语义：为 acquire/release 时只生成对应方向的编译器屏障，atomic_signal_fence(memory_order_relaxed) 为 空操作，但是 GCC 编译器会对 relaxed 产生一个 隐式编译器屏障。
+std::atomic_signal_fence(order)
 ```
 *   **作用**：仅对编译器有效，禁止编译器跨屏障重排内存访问指令，强制编译器将屏障前的所有内存读写操作完成，并让屏障后的内存读取操作**重新从内存加载**。
-*   **局限**：与 `volatile` 类似，它无法阻止 CPU 级别的乱序执行。
+*   **局限**：无法阻止 CPU 级别的乱序执行。
 
 #### **硬件内存屏障 (Hardware Memory Barrier)**
-硬件内存屏障通过特定的 CPU 指令，直接作用于 CPU，以确保内存操作的顺序性。
+硬件内存屏障 通过（在需要时生成的）CPU 指令 + 编译器屏障，直接作用于 编译器 和 CPU，以确保内存操作的顺序性。
 ```c
-// GCC/Clang 内置函数，生成一个全功能的内存屏障
-__sync_synchronize(); 
+// GCC/Clang 内置函数，生成一个全功能内存屏障
+__sync_synchronize(); // 旧式（不推荐）
+// C++11 当 order 为 seq_cst 时生成全功能内存屏障，为 acquire/release 时只生成对应方向的内存屏障，relaxed 为 空操作
+std::atomic_thread_fence(order) // 标准硬件屏障
 ```
-*   **作用**：这是一条“重量级”指令，通常会生成如 x86 的 `mfence` 或 ARM 的 `dmb ish` 指令。它确保**屏障之前的所有内存读写操作，必须在屏障之后的任何内存读写操作开始之前，对其他核心全局可见**。
-*   **对应关系**：在 C++ 原子操作中，`std::memory_order_seq_cst` 通常会产生一个完整的硬件内存屏障。
+*   **作用**：在 seq_cst 语义下，这是一条“重量级”指令，通常会生成如 x86 的 `mfence` 或 ARM 的 `dmb ish` 指令。它确保**屏障之前的所有内存读写操作，必须在屏障之后的任何内存读写操作开始之前，对其他核心全局可见**。
+*   **对应关系**：在 C++ 原子操作中，对 `std::atomic`变量（relaxed除外） 或 `std::mutex`变量 操作本身就存在隐式屏障，比如 `std::memory_order_seq_cst` 通常会产生一个完整的硬件内存屏障，mtx.lock()有隐式 acquire 屏障、mtx.unlock()有隐式 release 屏障。
+
+示例：
+```cpp
+#include <iostream>
+#include <signal.h>
+#include <unistd.h>
+
+int flag = 0;
+ssize_t ret = 0;
+
+extern "C" void handler(int) {
+    // 在 handler 里要用 信号安全函数 write
+    ret = write(1, "handler fired\n", 15);
+    flag = 1;
+}
+
+void do_something() {
+    static int x = 0;
+    x++;
+}
+
+int main() {
+    struct sigaction sa {};
+    sa.sa_handler = handler;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGUSR1, &sa, nullptr);
+    std::cerr << "在新终端给这个进程发 SIGUSR1 试试:  kill -USR1 " << getpid() << "\n";
+
+    while (flag == 0) {
+        do_something();
+        // asm volatile("" ::: "memory"); // 加了就复现不了了
+        // std::atomic_signal_fence(std::memory_order_acquire); 
+    }
+
+    ret = write(1, "loop exited\n", 13);
+    return 0;
+}
+// g++ -g -O2 atomic_signal_fence.cpp && ./a.out
+// g++ -O2 -S atomic_signal_fence.cpp -o atomic_signal_fence.s
+// grep -A 15 "flag(%rip)" atomic_signal_fence.s
+```
+```asm
+handler:
+    ; ...
+    movl    $1, flag(%rip)   ; 把 1 写入 flag 的内存地址 （可以顺手发现这里有个重排）
+    movq    %rax, ret(%rip)  ; 把 %rax 寄存器的值写入 ret 的内存地址
+    addq    $8, %rsp
+    ret
+
+main:
+    ; ...
+    movl    flag(%rip), %eax ; 从内存读 flag 的值到 %eax 寄存器
+    testl   %eax, %eax       ; 按位与测试 %eax 是否为 0并设置标志位 (若%eax==0，ZF=1；否则ZF=0)
+    jne     .L6              ; ​Jump .L6(退出循环) if Not Equal
+
+.L7:
+    jmp     .L7              ; 无条件回到 .L7
+
+.L6:
+    ; ...
+    call    write@PLT        ; write(1, "loop exited\n", 13);
+```
+
+如果使用 `asm volatile("" ::: "memory")`、`std::atomic_signal_fence(order)` 编译器屏障 可以解决这个卡死问题，用 volatile变量 或 std::atomic 等等更强的保证就更不用说了。
+```asm
+.L7:
+    addl    $1, _ZZ12do_somethingvE1x(%rip)
+    movl    flag(%rip), %eax
+    testl   %eax, %eax
+    je      .L7
+```
 
 
 ### **4. 内存序 `std::memory_order`** (重点)
